@@ -101,6 +101,28 @@
         <div id="audit-status-content"></div>
     </div>
 
+    <!-- Phase 1: Strategic Foundations -->
+    <div id="phase1-header" class="phase-header hidden">
+        <h2>📊 Phase 1: Strategic Foundations</h2>
+        <p>Real-time KPIs, Foresight Scenarios, and Governance Metrics</p>
+    </div>
+
+    <div id="strategic-goals-card" class="card hidden">
+        <h2>Strategic Goals & KPIs</h2>
+        <div id="strategic-goals-container" class="kpi-grid"></div>
+    </div>
+
+    <div id="risk-dashboard-card" class="card hidden">
+        <h2>Risk Dashboard & Scenarios</h2>
+        <div id="risk-summary" class="resilience-gauge"></div>
+        <div id="risk-scenarios-container" class="scenarios-grid"></div>
+    </div>
+
+    <div id="phase-progress-card" class="card hidden">
+        <h2>Sprint Phase Progress</h2>
+        <div id="phase-progress-bars" class="phase-progress"></div>
+    </div>
+
     <div id="logs-card" class="card hidden">
         <h2>Filtered Logs</h2>
         <table>
@@ -604,6 +626,171 @@
             }
         }
 
+        // Phase 1: Strategic Foundations Functions
+        async function refreshStrategicGoals() {
+            const container = document.getElementById('strategic-goals-container');
+            const card = document.getElementById('strategic-goals-card');
+            const header = document.getElementById('phase1-header');
+            try {
+                const data = await fetchJson('/api/phase1/strategic-goals');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Strategic goals data unavailable.</p>';
+                    return;
+                }
+                header.classList.remove('hidden');
+                card.classList.remove('hidden');
+
+                const goals = data.strategic_goals.map(goal => {
+                    const kpiCards = goal.kpis.map(kpi => {
+                        const statusColor = kpi.status === 'critical' ? '#ef4444' : kpi.status === 'warning' ? '#f59e0b' : '#10b981';
+                        return `
+                            <div class="kpi-item" style="border-left: 4px solid ${statusColor}">
+                                <div class="kpi-header">
+                                    <strong>${kpi.name}</strong>
+                                    <span class="kpi-status" style="background-color: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
+                                        ${kpi.status.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div class="kpi-progress-bar">
+                                    <div class="progress-fill" style="width: ${kpi.progress || 0}%; background-color: ${statusColor};"></div>
+                                </div>
+                                <p style="margin: 8px 0 4px 0; font-size: 0.9em;">
+                                    ${kpi.current_value} / ${kpi.target_value} ${kpi.unit || ''}
+                                </p>
+                                <p style="margin: 4px 0; font-size: 0.85em; color: #666;">Progress: ${Math.round(kpi.progress || 0)}%</p>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="goal-card">
+                            <div class="goal-header">
+                                <h3>${goal.title}</h3>
+                                <span class="goal-category" style="background-color: #3b82f6; color: white; padding: 4px 12px; border-radius: 4px; font-size: 0.9em;">
+                                    ${goal.category}
+                                </span>
+                            </div>
+                            <p style="margin: 8px 0; font-size: 0.95em; color: #555;">${goal.description}</p>
+                            <div class="goal-status">
+                                <p><strong>Overall Status:</strong> <span style="color: #10b981; font-weight: bold;">${goal.overall_status}</span></p>
+                                <p><strong>Overall Progress:</strong> ${Math.round(goal.overall_progress || 0)}%</p>
+                            </div>
+                            <div class="kpis-container">
+                                ${kpiCards}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = goals;
+            } catch (err) {
+                container.innerHTML = '<p class="note error">Unable to load strategic goals.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshRiskDashboard() {
+            const card = document.getElementById('risk-dashboard-card');
+            const summaryDiv = document.getElementById('risk-summary');
+            const scenariosDiv = document.getElementById('risk-scenarios-container');
+            try {
+                const data = await fetchJson('/api/phase1/risk-dashboard');
+                if (data.error) {
+                    summaryDiv.innerHTML = '<p class="note error">Risk dashboard data unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+
+                const resilience = data.dashboard_summary.resilience_score || 0;
+                const resilientColor = resilience >= 80 ? '#10b981' : resilience >= 60 ? '#f59e0b' : '#ef4444';
+
+                summaryDiv.innerHTML = `
+                    <div class="resilience-container">
+                        <div class="resilience-gauge-item">
+                            <div class="gauge-circle" style="border: 8px solid ${resilientColor}; width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 2em; font-weight: bold; color: ${resilientColor};">${Math.round(resilience)}%</div>
+                                    <div style="font-size: 0.9em; color: #666;">Resilience</div>
+                                </div>
+                            </div>
+                            <p style="text-align: center; margin-top: 12px; color: #555;">
+                                <strong>Foresight Confidence:</strong> ${Math.round((data.dashboard_summary.foresight_confidence || 0) * 100)}%
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+                const scenarios = (data.scenarios || []).map(scenario => {
+                    const riskColor = scenario.scenario_type === 'risk' ? '#ef4444' : '#10b981';
+                    return `
+                        <div class="scenario-card" style="border-top: 3px solid ${riskColor}">
+                            <h4>${scenario.name}</h4>
+                            <p style="margin: 8px 0; font-size: 0.9em; color: #555;">${scenario.description}</p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                                <div>
+                                    <p style="font-size: 0.85em; color: #666;">Probability</p>
+                                    <p style="font-size: 1.1em; font-weight: bold; color: ${riskColor};">${Math.round(scenario.probability * 100)}%</p>
+                                </div>
+                                <div>
+                                    <p style="font-size: 0.85em; color: #666;">Risk Score</p>
+                                    <p style="font-size: 1.1em; font-weight: bold; color: ${riskColor};">${Math.round(scenario.risk_score)}</p>
+                                </div>
+                            </div>
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                                <p style="font-size: 0.85em; color: #666;"><strong>Mitigation:</strong></p>
+                                <ul style="margin: 6px 0 0 16px; font-size: 0.9em;">
+                                    ${(scenario.mitigation_actions || []).slice(0, 2).map(action => `<li>${action}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                scenariosDiv.innerHTML = scenarios || '<p class="note">No risk scenarios available.</p>';
+            } catch (err) {
+                summaryDiv.innerHTML = '<p class="note error">Unable to load risk dashboard.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshPhaseProgress() {
+            const card = document.getElementById('phase-progress-card');
+            const container = document.getElementById('phase-progress-bars');
+            try {
+                card.classList.remove('hidden');
+
+                // Sprint phases with estimated completion percentages
+                const phases = [
+                    { name: 'Strategic Foundations', progress: 100, color: '#3b82f6', status: 'completed' },
+                    { name: 'Control Loop & Gateway', progress: 0, color: '#f59e0b', status: 'pending' },
+                    { name: 'Visualization Layer', progress: 0, color: '#10b981', status: 'pending' },
+                    { name: 'Data Integration', progress: 0, color: '#8b5cf6', status: 'pending' },
+                    { name: 'Full Governance', progress: 0, color: '#ef4444', status: 'pending' },
+                    { name: 'AI Companions', progress: 0, color: '#6b7280', status: 'pending' }
+                ];
+
+                const html = phases.map(phase => `
+                    <div class="phase-bar">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="font-weight: 600;">${phase.name}</span>
+                            <span style="font-size: 0.9em; color: #666;">${phase.progress}%</span>
+                        </div>
+                        <div style="width: 100%; background-color: #e5e7eb; border-radius: 8px; height: 24px; overflow: hidden;">
+                            <div style="width: ${phase.progress}%; height: 100%; background-color: ${phase.color}; transition: width 0.3s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-size: 0.8em; font-weight: bold;">
+                                ${phase.progress > 10 ? `${phase.progress}%` : ''}
+                            </div>
+                        </div>
+                        <p style="font-size: 0.85em; color: #999; margin-top: 4px;">${phase.status}</p>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = '<p class="note error">Unable to load phase progress.</p>';
+                console.error(err);
+            }
+        }
+
         async function refreshDashboard() {
             await refreshSummary();
             await refreshRegionSummary();
@@ -620,6 +807,11 @@
             await refreshOmniversalContinuum();
             await refreshMultiversalSimulation();
             await refreshGovernanceContinuum();
+
+            // Phase 1: Strategic Foundations
+            await refreshStrategicGoals();
+            await refreshRiskDashboard();
+            await refreshPhaseProgress();
         }
 
         refreshDashboard();
