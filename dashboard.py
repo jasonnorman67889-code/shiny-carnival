@@ -6,6 +6,8 @@ from io import StringIO
 
 from flask import Flask, Response, jsonify, render_template, request, g
 
+from services.foresight_service import ForesightService
+
 app = Flask(__name__)
 
 # Simple role-based users. Replace passwords with secure values in production.
@@ -705,6 +707,90 @@ def export_logs(format):
 @app.route("/role")
 def role():
     return jsonify({"role": g.role})
+
+
+# ============ Phase 1: Strategic Foundations Endpoints ============
+
+@app.route("/api/phase1/strategic-goals")
+def strategic_goals():
+    """Endpoint for Phase 1 Strategic Goals."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    foresight = ForesightService(data_dir="data")
+    goals = foresight.build_strategic_goals()
+    
+    return jsonify({
+        "phase": "Phase 1: Strategic Foundations",
+        "timestamp": datetime.utcnow().isoformat(),
+        "strategic_goals": [
+            {
+                "goal_id": g.goal_id,
+                "title": g.title,
+                "description": g.description,
+                "category": g.category,
+                "status": g.overall_status(),
+                "progress": g.overall_progress(),
+                "priority": g.priority,
+                "kpis": [
+                    {
+                        "name": kpi.name,
+                        "metric_type": kpi.metric_type,
+                        "current_value": kpi.current_value,
+                        "target_value": kpi.target_value,
+                        "status": kpi.status(),
+                        "progress_percent": kpi.progress_percent(),
+                        "unit": kpi.unit,
+                    }
+                    for kpi in g.kpis
+                ]
+            }
+            for g in goals
+        ]
+    })
+
+
+@app.route("/api/phase1/risk-scenarios")
+def risk_scenarios():
+    """Endpoint for Phase 1 Risk Scenarios."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    foresight = ForesightService(data_dir="data")
+    goals = foresight.build_strategic_goals()
+    scenarios = foresight.generate_risk_scenarios(goals)
+    
+    return jsonify({
+        "phase": "Phase 1: Strategic Foundations",
+        "timestamp": datetime.utcnow().isoformat(),
+        "risk_scenarios": [
+            {
+                "scenario_id": s.scenario_id,
+                "name": s.name,
+                "description": s.description,
+                "scenario_type": s.scenario_type,
+                "probability": s.probability,
+                "impact_level": s.impact_level,
+                "risk_score": s.risk_score(),
+                "confidence_score": s.confidence_score,
+                "affected_goals": s.affected_goals,
+                "mitigation_actions": s.mitigation_actions,
+            }
+            for s in scenarios
+        ]
+    })
+
+
+@app.route("/api/phase1/risk-dashboard")
+def risk_dashboard():
+    """Endpoint for Phase 1 Risk Dashboard Summary."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    foresight = ForesightService(data_dir="data")
+    summary = foresight.generate_phase_1_summary()
+    
+    return jsonify(summary)
 
 
 if __name__ == "__main__":
