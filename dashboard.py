@@ -72,6 +72,33 @@ def load_compliance_report():
             return {}
 
 
+def load_batch_summary():
+    if not os.path.exists(SUMMARY_PATH):
+        return {}
+    with open(SUMMARY_PATH, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+
+
+def load_user_region_data():
+    regions = []
+    if not os.path.exists(CSV_FILE_PATH):
+        return regions
+    with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            region = str(row.get("region", "USA")).strip().upper() or "USA"
+            regions.append({
+                "email": row.get("email", ""),
+                "name": row.get("name", ""),
+                "region": region,
+                "channel": row.get("channel", "unknown")
+            })
+    return regions
+
+
 def summarize_opt_out_history():
     history = load_opt_out_history()
     sorted_history = sorted(history, key=lambda x: x.get("timestamp", ""))
@@ -265,6 +292,8 @@ def load_transformation_insights():
 
 def build_strategy_nexus():
     transformation = load_transformation_insights()
+    summary = load_batch_summary()
+    user_regions = load_user_region_data()
     recommendations = []
     if transformation["pending_compliance_regions"]:
         recommendations.append("Embed compliance checkpoint review within every regional campaign launch.")
@@ -275,11 +304,17 @@ def build_strategy_nexus():
     if not recommendations:
         recommendations.append("Continue aligning campaign execution to market signals and governance priorities.")
 
+    if summary.get("failed_deliveries", 0) > 0:
+        recommendations.insert(0, "Investigate failed delivery paths and retry key audience segments.")
+    if len(user_regions) > 10:
+        recommendations.append("Leverage regional customer data to personalize high-value campaigns.")
+
     return {
         "nexus_status": "aligned",
         "vision": "Unified strategic intelligence across innovation, compliance, and campaign performance.",
         "recommendations": recommendations,
-        "headline_insight": "Leverage the transformation engine to maintain a single enterprise brain for leadership decision-making."
+        "headline_insight": "Leverage the transformation engine to maintain a single enterprise brain for leadership decision-making.",
+        "audience_regions": sorted({entry["region"] for entry in user_regions})
     }
 
 
@@ -287,47 +322,55 @@ def load_transcendent_intelligence_core():
     logs = load_log_lines()
     compliance = load_compliance_report()
     opt_out_count = len(load_opt_out_history())
-    region_counts = {entry.get("region", "USA").upper(): 0 for entry in logs}
+    region_counts = {}
     for entry in logs:
         region = str(entry.get("region", "USA")).strip().upper() or "USA"
-        region_counts[region] = region_counts.get(region, 0) + 1
+        region_counts.setdefault(region, 0)
+        region_counts[region] += 1
 
+    pending_compliance = [item for item in compliance.get("regional_audit", []) if item.get("status") != "Compliant"]
     detected_conditions = [
-        "Parallel universe with stricter compliance",
-        "Solar storm forecast in current timeline",
-        "Regional audit cycle synchronization mismatch"
+        "Parallel universe with stricter compliance" if pending_compliance else "No active compliance anomalies",
+        "Solar storm forecast in current timeline" if any("storm" in str(item).lower() for item in compliance.get("solar_events", [])) else "No immediate cosmic alerts",
+        "Regional audit cycle synchronization mismatch" if len(pending_compliance) > 1 else "Regional compliance cadence stable"
     ]
-    actions = [
-        "Harmonize strategies across realities and reschedule sensitive campaigns.",
-        "Elevate consent-first messaging for regions with emerging regulatory pressure.",
-        "Align planetary campaign signals with cosmic foresight and legacy values."
-    ]
+    resilience_score = int(min(100, 90 + max(0, len(logs) - opt_out_count) * 2 - len(pending_compliance) * 5))
     return {
         "core_status": "transcendent",
         "dimension_layers": ["planetary", "cosmic", "multiversal"],
         "temporal_layers": ["past", "present", "future"],
         "detected_conditions": detected_conditions,
         "core_action": "Harmonize strategies across realities, reschedule campaigns, and preserve universal campaign coherence.",
-        "resilience_score": 98,
+        "resilience_score": resilience_score,
         "region_activity": [{"region": region, "count": count} for region, count in sorted(region_counts.items())],
-        "recommendations": actions,
-        "legacy_alignment": compliance.get("legacy_alignment", "enabled")
+        "recommendations": [
+            "Harmonize strategies across realities and reschedule sensitive campaigns.",
+            "Elevate consent-first messaging for regions with emerging regulatory pressure.",
+            "Align planetary campaign signals with cosmic foresight and legacy values."
+        ],
+        "legacy_alignment": compliance.get("legacy_alignment", "enabled"),
+        "pending_compliance_count": len(pending_compliance)
     }
 
 
 def load_legacy_preservation_framework():
     compliance = load_compliance_report()
+    opt_out_count = len(load_opt_out_history())
+    pending_regions = [item.get("region") for item in compliance.get("regional_audit", []) if item.get("status") != "Compliant"]
     horizons = [
         {"horizon": "10 years", "priority": "sustainability", "status": "established"},
         {"horizon": "25 years", "priority": "cultural inheritance", "status": "maturing"},
         {"horizon": "50 years", "priority": "strategic archiving", "status": "anchored"},
         {"horizon": "100 years", "priority": "future validation", "status": "future-proofed"}
     ]
+    brand_resilience = max(40, 100 - opt_out_count * 10 - len(pending_regions) * 8)
     archive_actions = [
         "Archive sustainability-aligned campaigns to preserve legacy brand trust.",
         "Embed cultural values into campaign playbooks for generational resonance.",
         "Validate new initiatives against long-term legacy and governance goals."
     ]
+    if pending_regions:
+        archive_actions.insert(0, "Preserve audit-ready records for regions with compliance gaps.")
     century_forecast = "Shift toward eco-minimalism and values-based engagement."
     return {
         "framework_status": "legacy",
@@ -335,19 +378,25 @@ def load_legacy_preservation_framework():
         "archive_actions": archive_actions,
         "century_forecast": century_forecast,
         "framework_action": "Archive future-aligned campaigns and enforce eco-values across new launches.",
-        "brand_resilience_score": 96,
+        "brand_resilience_score": brand_resilience,
         "governance_archive": compliance.get("archive_records", []),
-        "regulatory_heritage": compliance.get("regulatory_heritage", "maintained")
+        "regulatory_heritage": compliance.get("regulatory_heritage", "maintained"),
+        "opt_out_count": opt_out_count,
+        "pending_compliance_regions": pending_regions
     }
 
 
 def load_singularity_governance_matrix():
     compliance = load_compliance_report()
+    pending = [item for item in compliance.get("regional_audit", []) if item.get("status") != "Compliant"]
     detected_conditions = [
-        "Compliance tightening in Europe",
-        "Cultural shift in Australia",
-        "Campaign tone drift across timelines"
+        "Compliance tightening in Europe" if any(item.get("region") == "EUROPE" for item in pending) else "Europe compliance stable",
+        "Cultural shift in Australia" if any(item.get("region") == "AUSTRALIA" for item in pending) else "APAC compliance stable",
+        "Campaign tone drift across timelines" if pending else "Campaign tone aligned across regions"
     ]
+    health_status = "stable" if not pending else "attention"
+    if len(pending) > 2:
+        health_status = "at-risk"
     actions = [
         "Harmonize governance rules globally and unify matrix oversight.",
         "Adjust campaign tone for regional cultures while preserving universal alignment.",
@@ -358,9 +407,10 @@ def load_singularity_governance_matrix():
         "convergence_layers": ["compliance", "foresight", "sustainability", "innovation"],
         "detected_conditions": detected_conditions,
         "matrix_action": "Harmonize governance rules globally, adjust campaign tone, and maintain universal compliance.",
-        "result": "Universal compliance maintained, engagement stabilized",
+        "result": "Universal compliance maintained, engagement stabilized" if not pending else "Universal compliance review required",
         "recommended_actions": actions,
-        "governance_health": compliance.get("regional_health", "stable")
+        "governance_health": health_status,
+        "pending_compliance_count": len(pending)
     }
 
 
@@ -403,14 +453,14 @@ def load_infinite_continuity_engine():
 def load_cosmic_eternal_nexus():
     """Synthesize cosmic foresight, singularity governance and continuity into one nexus."""
     compliance = load_compliance_report()
-    logs = load_log_lines()
     solar_events = compliance.get("solar_events", ["none"]) if isinstance(compliance, dict) else ["none"]
-    detected = ["Solar storm forecast" if "storm" in " ".join(solar_events).lower() else "No immediate cosmic alerts"]
-    # combine signals from existing modules
+    detected = [
+        "Solar storm forecast" if any("storm" in str(event).lower() for event in solar_events) else "No immediate cosmic alerts"
+    ]
     transcendent = load_transcendent_intelligence_core()
     continuity = load_infinite_continuity_engine()
     matrix = load_singularity_governance_matrix()
-    score = min(100, (transcendent.get("resilience_score", 90) + continuity.get("metrics", {}).get("resilience_index", 95)) // 2)
+    score = min(100, int((transcendent.get("resilience_score", 90) + continuity.get("metrics", {}).get("resilience_index", 95) + (100 - matrix.get("pending_compliance_count", 0) * 5)) / 3))
     return {
         "nexus_status": "cosmic-eternal",
         "detected_conditions": detected + matrix.get("detected_conditions", []),
@@ -420,7 +470,8 @@ def load_cosmic_eternal_nexus():
             "transcendent": transcendent.get("core_status"),
             "continuity": continuity.get("engine_status"),
             "matrix": matrix.get("matrix_status")
-        }
+        },
+        "pending_compliance_count": matrix.get("pending_compliance_count", 0)
     }
 
 
@@ -431,22 +482,24 @@ def load_omniversal_strategy_continuum():
     transcendent = load_transcendent_intelligence_core()
     sims = multiversal.get("simulations", [])
     timelines = continuum.get("timelines", [])
-    # simple resilience aggregation
-    res = {
-        "universe_count": len(sims),
-        "timeline_count": len(timelines),
-        "overall_resilience": 95
-    }
+    success_rate = float(multiversal.get("success_rate", "0%").rstrip("%")) if multiversal.get("success_rate") else 0
+    overall_resilience = min(100, int(success_rate + 10 - len(timelines)))
     recommended = [
         "Embed adaptive consent workflows across universes.",
         "Apply timeless eco-values to future-facing campaigns.",
         "Orchestrate timeline-specific creative with omniversal governance checks."
     ]
+    if transcendent.get("pending_compliance_count", 0) > 0:
+        recommended.insert(0, "Harmonize omniversal strategy with current compliance remediation plans.")
     return {
         "continuum_status": "omniversal",
         "simulations": sims,
         "timelines": timelines,
-        "resilience_summary": res,
+        "resilience_summary": {
+            "universe_count": len(sims),
+            "timeline_count": len(timelines),
+            "overall_resilience": overall_resilience
+        },
         "recommendations": recommended,
         "transcendent_anchor": transcendent.get("core_action")
     }
@@ -489,8 +542,10 @@ def load_multiversal_simulations():
 
 def load_governance_continuum():
     compliance = load_compliance_report()
+    regional_audit = compliance.get("regional_audit", []) if isinstance(compliance, dict) else []
+    pending = [item for item in regional_audit if item.get("status") != "Compliant"]
     horizons = [
-        {"horizon": "1 year", "governance_health": "stable", "focus": "current regulatory alignment"},
+        {"horizon": "1 year", "governance_health": "stable" if not pending else "watch", "focus": "current regulatory alignment"},
         {"horizon": "5 years", "governance_health": "maturing", "focus": "sustainability and generational trust"},
         {"horizon": "10 years", "governance_health": "resilient", "focus": "timeless compliance and cultural adaptability"},
         {"horizon": "50 years", "governance_health": "future-proof", "focus": "intergenerational ecosystem stewardship"}
@@ -500,13 +555,16 @@ def load_governance_continuum():
         "Build generational foresight into cross-region policy review cycles.",
         "Maintain a governance continuum dashboard for long-term resilience monitoring."
     ]
-    if not compliance.get("regional_audit"):
+    if pending:
+        recommended_actions.insert(0, f"Resolve {len(pending)} pending compliance items before the next governance review.")
+    elif not regional_audit:
         recommended_actions.insert(0, "Generate a regional audit baseline to anchor the governance continuum.")
     return {
         "continuum_status": "eternal",
         "timelines": horizons,
         "recommended_actions": recommended_actions,
-        "headline": "Eternal governance continues through a blend of policy resilience, sustainability permanence, and cultural foresight."
+        "headline": "Eternal governance continues through a blend of policy resilience, sustainability permanence, and cultural foresight.",
+        "pending_compliance_count": len(pending)
     }
 
 
