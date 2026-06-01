@@ -1,0 +1,12 @@
+{
+    "timestamp": "2026-06-01T06:53:09.236297",
+    "total_emails": 2,
+    "successful_deliveries": 2,
+    "failed_deliveries": 0,
+    "opt_out_count": 3,
+    "opt_out_list": [
+        "alice@example.com",
+        "automated-test@example.com",
+        "bob@example.com"
+    ]
+}

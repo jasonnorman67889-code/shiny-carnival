@@ -1,0 +1,5 @@
+timestamp,recipient_email,recipient_name,delivery_status,error_details
+2026-06-01 05:30:27,your_test_destination@gmail.com,TestUser,SUCCESS,Delivered
+2026-06-01 05:30:31,another_customer@yahoo.com,Sam,SUCCESS,Delivered
+2026-06-01 06:53:03,your_test_destination@gmail.com,TestUser,SUCCESS,Delivered
+2026-06-01 06:53:06,another_customer@yahoo.com,Sam,SUCCESS,Delivered

@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-06-01T06:53:09.236297",
+  "total_emails": 2,
+  "successful_deliveries": 2,
+  "failed_deliveries": 0,
+  "log_files": {
+    "csv": "email_status_log.csv",
+    "json": "email_status_log.json"
+  }
+}

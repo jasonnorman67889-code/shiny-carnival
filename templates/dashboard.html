@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Automation Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+
+<body>
+    <div class="card">
+        <h1>Email Automation Dashboard</h1>
+        <p>This dashboard uses Basic Auth and role-based access. Admins can view logs and export filtered results.</p>
+        <div id="summary" class="grid"></div>
+        <div id="region-summary-card" class="grid hidden"></div>
+        <div id="transformation-card" class="card hidden">
+            <h2>Transformation Engine</h2>
+            <div id="transformation-content"></div>
+        </div>
+        <div id="strategy-nexus-card" class="card hidden">
+            <h2>Corporate Strategy AI Nexus</h2>
+            <div id="strategy-nexus-content"></div>
+        </div>
+        <div id="transcendent-card" class="card hidden">
+            <h2>Transcendent Intelligence Core</h2>
+            <div id="transcendent-content"></div>
+        </div>
+        <div id="legacy-card" class="card hidden">
+            <h2>Legacy Preservation Framework</h2>
+            <div id="legacy-content"></div>
+        </div>
+        <div id="singularity-card" class="card hidden">
+            <h2>Singularity Governance Matrix</h2>
+            <div id="singularity-content"></div>
+        </div>
+        <div id="continuity-card" class="card hidden">
+            <h2>Infinite Continuity Engine</h2>
+            <div id="continuity-content"></div>
+        </div>
+        <div id="cosmic-card" class="card hidden">
+            <h2>Cosmic‑Eternal Nexus</h2>
+            <div id="cosmic-content"></div>
+        </div>
+        <div id="omniversal-card" class="card hidden">
+            <h2>Omniversal Strategy Continuum</h2>
+            <div id="omniversal-content"></div>
+        </div>
+        <div id="multiversal-card" class="card hidden">
+            <h2>Multiversal Simulation Engine</h2>
+            <div id="multiversal-content"></div>
+        </div>
+        <div id="continuum-card" class="card hidden">
+            <h2>Eternal Governance Continuum</h2>
+            <div id="continuum-content"></div>
+        </div>
+        <div id="role-indicator" class="role-indicator"></div>
+        <div id="role-note" class="note"></div>
+    </div>
+
+    <div id="filter-card" class="card">
+        <h2>Filters</h2>
+        <div>
+            <span class="inline-field"><label>Email <input id="filter-email" type="text"
+                        placeholder="recipient inbox" /></label></span>
+            <span class="inline-field"><label>Status <select id="filter-status">
+                        <option value="">Any</option>
+                        <option value="SUCCESS">Success</option>
+                        <option value="FAILED">Failed</option>
+                    </select></label></span>
+            <span class="inline-field"><label>Date from <input id="filter-from" type="date" /></label></span>
+            <span class="inline-field"><label>Date to <input id="filter-to" type="date" /></label></span>
+            <button class="button" onclick="refreshLogs()">Apply Filters</button>
+        </div>
+        <div id="export-links" class="export-links"></div>
+    </div>
+
+    <div id="viewer-summary-card" class="card hidden">
+        <h2>Viewer Summary</h2>
+        <p>As a viewer, you can inspect high-level batch metrics but detailed logs and exports are restricted.</p>
+        <ul>
+            <li>Use the summary cards above for overall performance.</li>
+            <li>Ask an admin to download filtered logs when needed.</li>
+        </ul>
+    </div>
+
+    <div id="opt-out-trend-card" class="card hidden">
+        <h2>Opt-Out Trend</h2>
+        <div id="opt-out-chart" class="chart-container"></div>
+        <p class="note">Admins can monitor unsubscribe momentum over time.</p>
+    </div>
+
+    <div id="compliance-card" class="card hidden">
+        <h2>Compliance Report</h2>
+        <p>Download the latest audit-ready compliance snapshot.</p>
+        <a id="compliance-link" class="button" href="/compliance-report">Download JSON Report</a>
+    </div>
+
+    <div id="audit-status-card" class="card hidden">
+        <h2>Regional Compliance Status</h2>
+        <div id="audit-status-content"></div>
+    </div>
+
+    <div id="logs-card" class="card hidden">
+        <h2>Filtered Logs</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Region</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody id="log-rows"></tbody>
+        </table>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-2.34.0.min.js"></script>
+    <script>
+        async function fetchJson(path) {
+            const response = await fetch(path);
+            return response.json();
+        }
+
+        async function refreshSummary() {
+            const summary = await fetchJson('/summary');
+            const container = document.getElementById('summary');
+            container.innerHTML = `
+                <div class="card"><strong>Total Emails</strong><p>${summary.total_emails}</p></div>
+                <div class="card"><strong>Successful</strong><p>${summary.successful_deliveries}</p></div>
+                <div class="card"><strong>Failed</strong><p>${summary.failed_deliveries}</p></div>
+            `;
+        }
+
+        async function refreshRegionSummary() {
+            const regionCard = document.getElementById('region-summary-card');
+            try {
+                const regions = await fetchJson('/region-summary');
+                if (!Array.isArray(regions) || !regions.length) {
+                    regionCard.classList.add('hidden');
+                    return;
+                }
+                regionCard.classList.remove('hidden');
+                regionCard.innerHTML = regions.map(region => `
+                    <div class="card region-card">
+                        <strong>${region.region}</strong>
+                        <p>Law: ${region.law || 'Unknown'}</p>
+                        <p>Recipients: ${region.recipient_count}</p>
+                        <p>Channels: ${(region.channels || []).join(', ')}</p>
+                        <p>Status: ${region.status || 'Pending review'}</p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                regionCard.classList.add('hidden');
+                console.error(err);
+            }
+        }
+
+        async function setRole() {
+            const roleIndicator = document.getElementById('role-indicator');
+            const roleNote = document.getElementById('role-note');
+            const filterCard = document.getElementById('filter-card');
+            const viewerSummaryCard = document.getElementById('viewer-summary-card');
+            const logsCard = document.getElementById('logs-card');
+            const optOutTrendCard = document.getElementById('opt-out-trend-card');
+            const complianceCard = document.getElementById('compliance-card');
+            const auditStatusCard = document.getElementById('audit-status-card');
+            const regionSummaryCard = document.getElementById('region-summary-card');
+            const transformationCard = document.getElementById('transformation-card');
+            const strategyNexusCard = document.getElementById('strategy-nexus-card');
+            const transcendentCard = document.getElementById('transcendent-card');
+            const legacyCard = document.getElementById('legacy-card');
+            const singularityCard = document.getElementById('singularity-card');
+            const continuityCard = document.getElementById('continuity-card');
+            const cosmicCard = document.getElementById('cosmic-card');
+            const omniversalCard = document.getElementById('omniversal-card');
+            const multiversalCard = document.getElementById('multiversal-card');
+            const continuumCard = document.getElementById('continuum-card');
+
+            try {
+                const roleData = await fetchJson('/role');
+                const role = roleData.role || 'unknown';
+                roleIndicator.textContent = `Signed in as: ${role.toUpperCase()}`;
+                if (role === 'admin') {
+                    roleNote.textContent = 'Admin access: full logs, export, and compliance features are enabled.';
+                    filterCard.classList.remove('hidden');
+                    viewerSummaryCard.classList.add('hidden');
+                    logsCard.classList.remove('hidden');
+                    optOutTrendCard.classList.remove('hidden');
+                    complianceCard.classList.remove('hidden');
+                    auditStatusCard.classList.remove('hidden');
+                    regionSummaryCard.classList.remove('hidden');
+                    transformationCard.classList.remove('hidden');
+                    strategyNexusCard.classList.remove('hidden');
+                    transcendentCard.classList.remove('hidden');
+                    legacyCard.classList.remove('hidden');
+                    singularityCard.classList.remove('hidden');
+                    continuityCard.classList.remove('hidden');
+                    cosmicCard.classList.remove('hidden');
+                    omniversalCard.classList.remove('hidden');
+                    multiversalCard.classList.remove('hidden');
+                    continuumCard.classList.remove('hidden');
+                } else {
+                    roleNote.textContent = 'Viewer access: only summary data is available. Detailed logs and exports are restricted.';
+                    filterCard.classList.add('hidden');
+                    viewerSummaryCard.classList.remove('hidden');
+                    logsCard.classList.add('hidden');
+                    optOutTrendCard.classList.add('hidden');
+                    complianceCard.classList.add('hidden');
+                    auditStatusCard.classList.add('hidden');
+                    regionSummaryCard.classList.add('hidden');
+                    transformationCard.classList.add('hidden');
+                    strategyNexusCard.classList.add('hidden');
+                    transcendentCard.classList.add('hidden');
+                    legacyCard.classList.add('hidden');
+                    singularityCard.classList.add('hidden');
+                    continuityCard.classList.add('hidden');
+                    cosmicCard.classList.add('hidden');
+                    omniversalCard.classList.add('hidden');
+                    multiversalCard.classList.add('hidden');
+                    continuumCard.classList.add('hidden');
+                }
+                return role;
+            } catch (err) {
+                roleIndicator.textContent = 'Unable to determine role';
+                roleNote.textContent = 'Unable to verify access level.';
+                filterCard.classList.add('hidden');
+                viewerSummaryCard.classList.remove('hidden');
+                logsCard.classList.add('hidden');
+                optOutTrendCard.classList.add('hidden');
+                complianceCard.classList.add('hidden');
+                auditStatusCard.classList.add('hidden');
+                regionSummaryCard.classList.add('hidden');
+                transformationCard.classList.add('hidden');
+                strategyNexusCard.classList.add('hidden');
+                transcendentCard.classList.add('hidden');
+                legacyCard.classList.add('hidden');
+                singularityCard.classList.add('hidden');
+                continuityCard.classList.add('hidden');
+                multiversalCard.classList.add('hidden');
+                continuumCard.classList.add('hidden');
+                console.error(err);
+                return 'unknown';
+            }
+        }
+
+        async function refreshLogs() {
+            const email = document.getElementById('filter-email').value;
+            const status = document.getElementById('filter-status').value;
+            const dateFrom = document.getElementById('filter-from').value;
+            const dateTo = document.getElementById('filter-to').value;
+            const params = new URLSearchParams();
+            if (email) params.set('email', email);
+            if (status) params.set('status', status);
+            if (dateFrom) params.set('date_from', dateFrom + 'T00:00:00');
+            if (dateTo) params.set('date_to', dateTo + 'T23:59:59');
+
+            const exportLinks = document.getElementById('export-links');
+            const logsCard = document.getElementById('logs-card');
+            const role = await setRole();
+
+            if (role !== 'admin') {
+                exportLinks.innerHTML = '<p class="note">Only admin users can download full logs.</p>';
+                logsCard.classList.add('hidden');
+            } else {
+                exportLinks.innerHTML = `
+                    <a class="button" href="/export/csv?${params.toString()}">Download CSV</a>
+                    <a class="button secondary" href="/export/json?${params.toString()}">Download JSON</a>
+                `;
+                logsCard.classList.remove('hidden');
+            }
+
+            try {
+                const logs = await fetchJson('/logs?' + params.toString());
+                if (logs.error) {
+                    logsCard.classList.add('hidden');
+                    if (role === 'viewer') {
+                        exportLinks.innerHTML = '<p class="note error">Viewer accounts cannot access detailed logs.</p>';
+                    }
+                    return;
+                }
+                logsCard.classList.remove('hidden');
+                const rows = logs.map(entry => `
+                    <tr>
+                        <td>${entry.timestamp}</td>
+                        <td>${entry.recipient_email}</td>
+                        <td>${entry.recipient_name}</td>
+                        <td>${entry.region || 'N/A'}</td>
+                        <td><span class="badge ${entry.delivery_status.toLowerCase()}">${entry.delivery_status}</span></td>
+                        <td>${entry.error_details || ''}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('log-rows').innerHTML = rows;
+            } catch (err) {
+                logsCard.classList.add('hidden');
+                console.error(err);
+            }
+        }
+
+        async function refreshOptOutTrend() {
+            try {
+                const history = await fetchJson('/opt-outs');
+                if (history.error) {
+                    document.getElementById('opt-out-chart').innerHTML = '<p class="note error">Unable to load opt-out trend.</p>';
+                    return;
+                }
+                const dates = history.map(item => item.timestamp);
+                const counts = history.map((_, index) => index + 1);
+                Plotly.newPlot('opt-out-chart', [{ x: dates, y: counts, type: 'scatter', mode: 'lines+markers', marker: { color: '#2563eb' } }], {
+                    title: 'Cumulative Opt-Outs',
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Cumulative Opt-Outs' },
+                    margin: { t: 40, l: 40, r: 20, b: 40 }
+                }, { responsive: true });
+            } catch (err) {
+                document.getElementById('opt-out-chart').innerHTML = '<p class="note error">Unable to render opt-out chart.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshAuditStatus() {
+            try {
+                const summary = await fetchJson('/region-summary');
+                const container = document.getElementById('audit-status-content');
+                if (!Array.isArray(summary) || !summary.length) {
+                    container.innerHTML = '<p class="note">No regional audit metrics are available.</p>';
+                    return;
+                }
+                container.innerHTML = summary.map(item => `
+                    <div class="region-audit-row">
+                        <strong>${item.region}</strong> - ${item.law || 'Unknown law'}<br>
+                        Status: ${item.status || 'Pending review'}<br>
+                        Recipients: ${item.recipient_count}
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('audit-status-content').innerHTML = '<p class="note error">Unable to load audit status.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshTransformationEngine() {
+            try {
+                const data = await fetchJson('/transformation-insights');
+                const container = document.getElementById('transformation-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Transformation engine insights are unavailable.</p>';
+                    return;
+                }
+                const insightItems = data.insights.map(item => `
+                    <li class="insight-item ${item.type}"><strong>${item.title}</strong>: ${item.detail}</li>
+                `).join('');
+                const actionItems = data.actions.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.engine_status}</strong></p>
+                    <p>Success rate: <strong>${data.success_rate}</strong></p>
+                    <p>Opt-out count: <strong>${data.opt_out_count}</strong></p>
+                    <h3>Key insights</h3>
+                    <ul class="insight-list">${insightItems}</ul>
+                    <h3>Recommended actions</h3>
+                    <ul>${actionItems}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('transformation-content').innerHTML = '<p class="note error">Unable to load transformation engine insights.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshStrategyNexus() {
+            try {
+                const data = await fetchJson('/strategy-nexus');
+                const container = document.getElementById('strategy-nexus-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Strategy nexus intelligence is unavailable.</p>';
+                    return;
+                }
+                const recommendations = data.recommendations.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p>${data.vision}</p>
+                    <p><strong>${data.headline_insight}</strong></p>
+                    <h3>Leadership recommendations</h3>
+                    <ul>${recommendations}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('strategy-nexus-content').innerHTML = '<p class="note error">Unable to load strategy nexus insights.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshTranscendentCore() {
+            try {
+                const data = await fetchJson('/transcendent-core');
+                const container = document.getElementById('transcendent-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Transcendent core insights are unavailable.</p>';
+                    return;
+                }
+                const conditions = data.detected_conditions.map(item => `<li>${item}</li>`).join('');
+                const recommendations = data.recommendations.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.core_status}</strong></p>
+                    <p>Resilience score: <strong>${data.resilience_score}%</strong></p>
+                    <h3>Detected conditions</h3>
+                    <ul>${conditions}</ul>
+                    <h3>Core action</h3>
+                    <p>${data.core_action}</p>
+                    <h3>Transcendent recommendations</h3>
+                    <ul>${recommendations}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('transcendent-content').innerHTML = '<p class="note error">Unable to load transcendent core data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshLegacyFramework() {
+            try {
+                const data = await fetchJson('/legacy-framework');
+                const container = document.getElementById('legacy-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Legacy framework insights are unavailable.</p>';
+                    return;
+                }
+                const horizonHtml = data.generation_horizons.map(item => `
+                    <div class="region-audit-row">
+                        <strong>${item.horizon}</strong><br>
+                        Priority: ${item.priority}<br>
+                        Status: ${item.status}
+                    </div>
+                `).join('');
+                const actions = data.archive_actions.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p><strong>${data.century_forecast}</strong></p>
+                    <p>${data.framework_action}</p>
+                    <h3>Generational horizons</h3>
+                    ${horizonHtml}
+                    <h3>Archive actions</h3>
+                    <ul>${actions}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('legacy-content').innerHTML = '<p class="note error">Unable to load legacy framework data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshSingularityMatrix() {
+            try {
+                const data = await fetchJson('/singularity-matrix');
+                const container = document.getElementById('singularity-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Singularity matrix insights are unavailable.</p>';
+                    return;
+                }
+                const conditions = data.detected_conditions.map(item => `<li>${item}</li>`).join('');
+                const actions = data.recommended_actions.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.matrix_status}</strong></p>
+                    <p>Result: <strong>${data.result}</strong></p>
+                    <h3>Detected conditions</h3>
+                    <ul>${conditions}</ul>
+                    <h3>Matrix action</h3>
+                    <p>${data.matrix_action}</p>
+                    <h3>Recommended actions</h3>
+                    <ul>${actions}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('singularity-content').innerHTML = '<p class="note error">Unable to load singularity matrix data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshContinuityEngine() {
+            try {
+                const data = await fetchJson('/continuity-engine');
+                const container = document.getElementById('continuity-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Continuity engine insights are unavailable.</p>';
+                    return;
+                }
+                const actions = data.recommended_actions.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.engine_status}</strong></p>
+                    <p><strong>${data.continuity_forecast}</strong></p>
+                    <p>${data.engine_action}</p>
+                    <h3>Continuity metrics</h3>
+                    <p>Resilience index: <strong>${data.metrics.resilience_index}</strong></p>
+                    <p>Decay prevention: <strong>${data.metrics.decay_prevention}</strong></p>
+                    <p>Future horizon: <strong>${data.metrics.future_horizon_years} years</strong></p>
+                    <h3>Recommended actions</h3>
+                    <ul>${actions}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('continuity-content').innerHTML = '<p class="note error">Unable to load continuity engine data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshCosmicNexus() {
+            try {
+                const data = await fetchJson('/cosmic-nexus');
+                const container = document.getElementById('cosmic-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Cosmic nexus insights are unavailable.</p>';
+                    return;
+                }
+                const conditions = (data.detected_conditions || []).map(c => `<li>${c}</li>`).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.nexus_status}</strong></p>
+                    <p>Unified resilience score: <strong>${data.unified_resilience_score}</strong></p>
+                    <h3>Detected conditions</h3>
+                    <ul>${conditions}</ul>
+                    <h3>Nexus action</h3>
+                    <p>${data.nexus_action}</p>
+                `;
+            } catch (err) {
+                document.getElementById('cosmic-content').innerHTML = '<p class="note error">Unable to load cosmic nexus data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshOmniversalContinuum() {
+            try {
+                const data = await fetchJson('/omniversal-continuum');
+                const container = document.getElementById('omniversal-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Omniversal continuum insights are unavailable.</p>';
+                    return;
+                }
+                const sims = (data.simulations || []).map(s => `<li>${s.universe}: ${s.scenario} (ROI ${s.roi_change}%)</li>`).join('');
+                const timelines = (data.timelines || []).map(t => `<li>${t.horizon} - ${t.governance_health}</li>`).join('');
+                const recs = (data.recommendations || []).map(r => `<li>${r}</li>`).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.continuum_status}</strong></p>
+                    <h3>Simulations</h3>
+                    <ul>${sims}</ul>
+                    <h3>Timelines</h3>
+                    <ul>${timelines}</ul>
+                    <h3>Recommendations</h3>
+                    <ul>${recs}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('omniversal-content').innerHTML = '<p class="note error">Unable to load omniversal continuum data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshMultiversalSimulation() {
+            try {
+                const data = await fetchJson('/multiversal-simulations');
+                const container = document.getElementById('multiversal-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Multiversal simulation insights are unavailable.</p>';
+                    return;
+                }
+                const scenarios = data.simulations.map(sim => `
+                    <div class="region-audit-row">
+                        <strong>${sim.universe}: ${sim.scenario}</strong><br>
+                        ROI change: <strong>${sim.roi_change}%</strong><br>
+                        Strategy: ${sim.recommended_strategy}<br>
+                        Resilience: ${sim.resilience}
+                    </div>
+                `).join('');
+                container.innerHTML = `
+                    <p>Status: <strong>${data.engine_status}</strong></p>
+                    <p>${data.insight}</p>
+                    <h3>Simulation Scenarios</h3>
+                    ${scenarios}
+                `;
+            } catch (err) {
+                document.getElementById('multiversal-content').innerHTML = '<p class="note error">Unable to load multiversal simulation data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshGovernanceContinuum() {
+            try {
+                const data = await fetchJson('/governance-continuum');
+                const container = document.getElementById('continuum-content');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Governance continuum insights are unavailable.</p>';
+                    return;
+                }
+                const timelineHtml = data.timelines.map(item => `
+                    <div class="region-audit-row">
+                        <strong>${item.horizon}</strong><br>
+                        Health: ${item.governance_health}<br>
+                        Focus: ${item.focus}
+                    </div>
+                `).join('');
+                const actions = data.recommended_actions.map(item => `<li>${item}</li>`).join('');
+                container.innerHTML = `
+                    <p><strong>${data.headline}</strong></p>
+                    <h3>Time Horizon Health</h3>
+                    ${timelineHtml}
+                    <h3>Continuum Recommendations</h3>
+                    <ul class="strategy-list">${actions}</ul>
+                `;
+            } catch (err) {
+                document.getElementById('continuum-content').innerHTML = '<p class="note error">Unable to load governance continuum data.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshDashboard() {
+            await refreshSummary();
+            await refreshRegionSummary();
+            await refreshLogs();
+            await refreshOptOutTrend();
+            await refreshAuditStatus();
+            await refreshTransformationEngine();
+            await refreshStrategyNexus();
+            await refreshTranscendentCore();
+            await refreshLegacyFramework();
+            await refreshSingularityMatrix();
+            await refreshContinuityEngine();
+            await refreshCosmicNexus();
+            await refreshOmniversalContinuum();
+            await refreshMultiversalSimulation();
+            await refreshGovernanceContinuum();
+        }
+
+        refreshDashboard();
+    </script>
+</body>
+
+</html>

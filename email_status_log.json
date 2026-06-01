@@ -1,0 +1,4 @@
+{"timestamp": "2026-06-01 05:30:27", "recipient_email": "your_test_destination@gmail.com", "recipient_name": "TestUser", "delivery_status": "SUCCESS", "error_details": "Delivered"}
+{"timestamp": "2026-06-01 05:30:31", "recipient_email": "another_customer@yahoo.com", "recipient_name": "Sam", "delivery_status": "SUCCESS", "error_details": "Delivered"}
+{"timestamp": "2026-06-01 06:53:03", "recipient_email": "your_test_destination@gmail.com", "recipient_name": "TestUser", "delivery_status": "SUCCESS", "error_details": "Delivered"}
+{"timestamp": "2026-06-01 06:53:06", "recipient_email": "another_customer@yahoo.com", "recipient_name": "Sam", "delivery_status": "SUCCESS", "error_details": "Delivered"}

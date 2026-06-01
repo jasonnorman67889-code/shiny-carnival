@@ -1,0 +1,151 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 24px;
+    background: #f8f9fb;
+    color: #1f2937;
+}
+
+.card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+    margin-bottom: 20px;
+    padding: 20px;
+}
+
+.grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.button {
+    display: inline-block;
+    margin-right: 10px;
+    margin-top: 10px;
+    padding: 10px 16px;
+    background: #2563eb;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+}
+
+.button.secondary {
+    background: #6b7280;
+}
+
+.inline-field {
+    display: inline-block;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.inline-field input,
+.inline-field select {
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+th {
+    background: #f3f4f6;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.badge.success {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.badge.failed {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.region-card {
+    border: 1px solid #e5e7eb;
+    padding: 16px;
+    border-radius: 10px;
+    background: #f9fafb;
+}
+
+.region-audit-row {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.note {
+    color: #4b5563;
+    margin-top: 8px;
+    font-size: 0.95rem;
+}
+
+.note.error {
+    color: #b91c1c;
+}
+
+.role-indicator {
+    margin-top: 12px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.export-links {
+    margin-top: 16px;
+}
+
+.chart-container {
+    min-height: 320px;
+}
+
+.insight-list,
+.strategy-list {
+    padding-left: 18px;
+    margin-top: 10px;
+}
+
+.insight-item {
+    margin-bottom: 8px;
+}
+
+.insight-item.info {
+    color: #0f766e;
+}
+
+.insight-item.alert {
+    color: #b91c1c;
+}
+
+.insight-item.risk {
+    color: #c2410c;
+}
+
+.insight-item.governance {
+    color: #1d4ed8;
+}
+
+.hidden {
+    display: none;
+}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unsubscribe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 24px;
+            background: #f8f9fb;
+            color: #1f2937;
+        }
+
+        .page {
+            max-width: 520px;
+            margin: 32px auto;
+            padding: 24px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-top: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 16px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+
+        .message {
+            margin-top: 18px;
+            padding: 14px;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <h1>Unsubscribe</h1>
+        <p>Enter your email to remove yourself from future messages.</p>
+        <form method="post">
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" required placeholder="you@example.com" />
+            <button type="submit">Unsubscribe</button>
+        </form>
+        {% if error %}
+        <div class="message error">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="message">{{ email }} has been unsubscribed. You will no longer receive future emails.</div>
+        {% endif %}
+    </div>
+</body>
+
+</html>
