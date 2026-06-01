@@ -7,6 +7,8 @@ from io import StringIO
 from flask import Flask, Response, jsonify, render_template, request, g
 
 from services.foresight_service import ForesightService
+from services.control_loop_service import ControlLoopService
+from services.ai_gateway_service import AIGatewayService
 
 app = Flask(__name__)
 
@@ -22,6 +24,11 @@ OPT_OUT_CSV_PATH = os.getenv("OPT_OUT_CSV_PATH", "opt_outs.csv")
 OPT_OUT_HISTORY_PATH = os.getenv("OPT_OUT_HISTORY_PATH", "opt_out_history.json")
 COMPLIANCE_REPORT_PATH = os.getenv("COMPLIANCE_REPORT_PATH", "compliance_report.json")
 CSV_FILE_PATH = os.getenv("CSV_FILE_PATH", "users.csv")
+
+# Initialize Phase 2 services
+foresight_service = ForesightService(".")
+control_loop_service = ControlLoopService(".")
+ai_gateway_service = AIGatewayService()
 
 
 def load_opt_outs():
@@ -791,6 +798,114 @@ def risk_dashboard():
     summary = foresight.generate_phase_1_summary()
     
     return jsonify(summary)
+
+
+# ============ Phase 2: Control Loop & Gateway Endpoints ============
+
+@app.route("/api/phase2/control-loop-cycle", methods=["POST"])
+def execute_control_loop_cycle():
+    """Execute one control loop cycle."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    try:
+        cycle = control_loop_service.run_control_loop_cycle()
+        return jsonify({
+            "phase": "Phase 2: Control Loop & Gateway",
+            "status": "success",
+            "cycle": cycle.to_dict(),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            "phase": "Phase 2: Control Loop & Gateway",
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/phase2/control-loop-status")
+def control_loop_status():
+    """Get control loop status."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    return jsonify({
+        "phase": "Phase 2: Control Loop & Gateway",
+        "control_loop_status": control_loop_service.get_control_loop_status(),
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+
+@app.route("/api/phase2/ai-gateway-status")
+def ai_gateway_status():
+    """Get AI Gateway status and model configuration."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    return jsonify({
+        "phase": "Phase 2: Control Loop & Gateway",
+        "gateway_status": ai_gateway_service.get_gateway_status(),
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+
+@app.route("/api/phase2/workflows")
+def get_workflows():
+    """Get all workflows."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    workflows = control_loop_service.get_all_workflows()
+    return jsonify({
+        "phase": "Phase 2: Control Loop & Gateway",
+        "workflow_count": len(workflows),
+        "workflows": workflows,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+
+@app.route("/api/phase2/workflow/<workflow_id>")
+def get_workflow(workflow_id):
+    """Get a specific workflow."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    workflow = control_loop_service.get_workflow_status(workflow_id)
+    if not workflow:
+        return jsonify({"error": "Workflow not found"}), 404
+    
+    return jsonify({
+        "phase": "Phase 2: Control Loop & Gateway",
+        "workflow": workflow,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+
+@app.route("/api/phase2/ai-inference", methods=["POST"])
+def execute_ai_inference():
+    """Execute an AI inference request through the gateway."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    try:
+        data = request.get_json()
+        task_type = data.get("task_type", "scenario_generation")
+        request_data = data.get("request_data", {})
+        
+        result = ai_gateway_service.execute_inference(task_type, request_data)
+        return jsonify({
+            "phase": "Phase 2: Control Loop & Gateway",
+            "status": "success",
+            "inference_result": result,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            "phase": "Phase 2: Control Loop & Gateway",
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 
 if __name__ == "__main__":
