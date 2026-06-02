@@ -123,6 +123,29 @@
         <div id="phase-progress-bars" class="phase-progress"></div>
     </div>
 
+    <!-- Phase 2: Control Loop & Gateway -->
+    <div id="phase2-header" class="phase-header hidden">
+        <h2>⚙️ Phase 2: Control Loop & Gateway</h2>
+        <p>Real-time Orchestration, AI Gateway, and Workflow Management</p>
+    </div>
+
+    <div id="control-loop-card" class="card hidden">
+        <h2>Control Loop Status</h2>
+        <div id="control-loop-metrics" class="metrics-grid"></div>
+        <div id="control-loop-cycles" class="cycles-container"></div>
+    </div>
+
+    <div id="ai-gateway-card" class="card hidden">
+        <h2>AI Gateway & Models</h2>
+        <div id="gateway-status" class="gateway-status"></div>
+        <div id="models-grid" class="models-grid"></div>
+    </div>
+
+    <div id="workflows-card" class="card hidden">
+        <h2>Workflow Management</h2>
+        <div id="workflows-container" class="workflows-container"></div>
+    </div>
+
     <div id="logs-card" class="card hidden">
         <h2>Filtered Logs</h2>
         <table>
@@ -206,6 +229,11 @@
             const strategicGoalsCard = document.getElementById('strategic-goals-card');
             const riskDashboardCard = document.getElementById('risk-dashboard-card');
             const phaseProgressCard = document.getElementById('phase-progress-card');
+            // Phase 2 cards
+            const phase2Header = document.getElementById('phase2-header');
+            const controlLoopCard = document.getElementById('control-loop-card');
+            const aiGatewayCard = document.getElementById('ai-gateway-card');
+            const workflowsCard = document.getElementById('workflows-card');
 
             try {
                 const roleData = await fetchJson('/role');
@@ -235,6 +263,11 @@
                     strategicGoalsCard.classList.remove('hidden');
                     riskDashboardCard.classList.remove('hidden');
                     phaseProgressCard.classList.remove('hidden');
+                    // Phase 2 cards for admin
+                    phase2Header.classList.remove('hidden');
+                    controlLoopCard.classList.remove('hidden');
+                    aiGatewayCard.classList.remove('hidden');
+                    workflowsCard.classList.remove('hidden');
                 } else {
                     roleNote.textContent = 'Viewer access: only summary data is available. Detailed logs and exports are restricted.';
                     filterCard.classList.add('hidden');
@@ -259,6 +292,11 @@
                     strategicGoalsCard.classList.add('hidden');
                     riskDashboardCard.classList.add('hidden');
                     phaseProgressCard.classList.add('hidden');
+                    // Phase 2 cards hidden for non-admin
+                    phase2Header.classList.add('hidden');
+                    controlLoopCard.classList.add('hidden');
+                    aiGatewayCard.classList.add('hidden');
+                    workflowsCard.classList.add('hidden');
                 }
                 return role;
             } catch (err) {
@@ -284,6 +322,11 @@
                 strategicGoalsCard.classList.add('hidden');
                 riskDashboardCard.classList.add('hidden');
                 phaseProgressCard.classList.add('hidden');
+                // Phase 2 cards hidden on error
+                phase2Header.classList.add('hidden');
+                controlLoopCard.classList.add('hidden');
+                aiGatewayCard.classList.add('hidden');
+                workflowsCard.classList.add('hidden');
                 console.error(err);
                 return 'unknown';
             }
@@ -827,6 +870,193 @@
             }
         }
 
+        async function refreshControlLoopStatus() {
+            const card = document.getElementById('control-loop-card');
+            const metricsDiv = document.getElementById('control-loop-metrics');
+            const cyclesDiv = document.getElementById('control-loop-cycles');
+            try {
+                const data = await fetchJson('/api/phase2/control-loop-status');
+                if (data.error) {
+                    metricsDiv.innerHTML = '<p class="note error">Control loop data unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+                const status = data.control_loop_status;
+
+                // Metrics display
+                const isActive = status.is_active ? '🟢 ACTIVE' : '🔴 INACTIVE';
+                const metricsHtml = `
+                    <div class="metric-box" style="background: ${status.is_active ? '#d1fae5' : '#fee2e2'}; border: 2px solid ${status.is_active ? '#10b981' : '#ef4444'};">
+                        <div style="font-size: 1.5em; font-weight: bold; color: ${status.is_active ? '#059669' : '#dc2626'};">${isActive}</div>
+                    </div>
+                    <div class="metric-box">
+                        <div style="font-size: 0.85em; color: #666;">Cycles Executed</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #3b82f6;">${status.total_cycles_executed}</div>
+                    </div>
+                    <div class="metric-box">
+                        <div style="font-size: 0.85em; color: #666;">Events Processed</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #10b981;">${status.total_events_processed}</div>
+                    </div>
+                    <div class="metric-box">
+                        <div style="font-size: 0.85em; color: #666;">Workflows Triggered</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #f59e0b;">${status.total_workflows_triggered}</div>
+                    </div>
+                    <div class="metric-box">
+                        <div style="font-size: 0.85em; color: #666;">Event Queue</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #8b5cf6;">${status.event_queue_size}</div>
+                    </div>
+                `;
+                metricsDiv.innerHTML = metricsHtml;
+
+                // Recent cycles display
+                if (status.recent_cycles && status.recent_cycles.length > 0) {
+                    const cyclesHtml = status.recent_cycles.slice(0, 5).map((cycle, idx) => `
+                        <div class="cycle-item" style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 8px; border-radius: 4px;">
+                            <div style="font-weight: bold; font-size: 0.95em;">Cycle ${idx + 1}: ${cycle.status || 'COMPLETED'}</div>
+                            <div style="font-size: 0.85em; color: #666; margin-top: 4px;">Events: ${cycle.events_processed || 0} | Workflows: ${cycle.workflows_triggered || 0}</div>
+                            <div style="font-size: 0.85em; color: #999; margin-top: 4px;">${cycle.timestamp || 'N/A'}</div>
+                        </div>
+                    `).join('');
+                    cyclesDiv.innerHTML = cyclesHtml;
+                } else {
+                    cyclesDiv.innerHTML = '<p class="note">No recent control loop cycles yet. System is waiting for events.</p>';
+                }
+            } catch (err) {
+                metricsDiv.innerHTML = '<p class="note error">Unable to load control loop status.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshAIGatewayStatus() {
+            const card = document.getElementById('ai-gateway-card');
+            const statusDiv = document.getElementById('gateway-status');
+            const modelsDiv = document.getElementById('models-grid');
+            try {
+                const data = await fetchJson('/api/phase2/ai-gateway-status');
+                if (data.error) {
+                    statusDiv.innerHTML = '<p class="note error">AI Gateway data unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+                const gw = data.gateway_status;
+
+                // Gateway status
+                const statusColor = gw.status === 'operational' ? '#10b981' : gw.status === 'degraded' ? '#f59e0b' : '#ef4444';
+                const statusHtml = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                        <div class="metric-box" style="border-left: 4px solid ${statusColor};">
+                            <div style="font-size: 0.85em; color: #666;">Gateway Status</div>
+                            <div style="font-size: 1.3em; font-weight: bold; color: ${statusColor};">${gw.status.toUpperCase()}</div>
+                        </div>
+                        <div class="metric-box">
+                            <div style="font-size: 0.85em; color: #666;">Active Models</div>
+                            <div style="font-size: 1.3em; font-weight: bold; color: #3b82f6;">${gw.active_models} / ${gw.total_models}</div>
+                        </div>
+                        <div class="metric-box">
+                            <div style="font-size: 0.85em; color: #666;">Success Rate</div>
+                            <div style="font-size: 1.3em; font-weight: bold; color: #10b981;">${gw.inference_metrics.success_rate}</div>
+                        </div>
+                        <div class="metric-box">
+                            <div style="font-size: 0.85em; color: #666;">Avg Latency</div>
+                            <div style="font-size: 1.3em; font-weight: bold; color: #f59e0b;">${gw.inference_metrics.average_latency_ms}ms</div>
+                        </div>
+                    </div>
+                `;
+                statusDiv.innerHTML = statusHtml;
+
+                // Models grid
+                if (gw.models && gw.models.length > 0) {
+                    const modelsHtml = gw.models.map(model => {
+                        const typeColors = {
+                            'foresight': '#8b5cf6',
+                            'orchestration': '#3b82f6',
+                            'governance': '#10b981',
+                            'adaptive': '#f59e0b'
+                        };
+                        const typeColor = typeColors[model.model_type] || '#6b7280';
+                        return `
+                            <div class="model-card" style="background: #f8fafc; border: 2px solid ${typeColor}; border-radius: 8px; padding: 16px; display: flex; flex-direction: column;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                    <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${typeColor};"></div>
+                                    <h4 style="margin: 0; color: #111;">${model.model_name}</h4>
+                                </div>
+                                <div style="font-size: 0.85em; color: #666; margin-bottom: 8px;">Type: <strong>${model.model_type}</strong></div>
+                                <div style="font-size: 0.85em; color: #999; margin-bottom: 12px;">ID: ${model.model_id}</div>
+                                <div style="font-size: 0.8em; margin-bottom: 12px;">
+                                    <strong>Capabilities:</strong>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+                                        ${(model.capabilities || []).slice(0, 3).map(cap => `<span style="background: ${typeColor}22; color: ${typeColor}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em;">${cap}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div style="flex-grow: 1;"></div>
+                                <div style="background: ${model.is_active ? '#d1fae5' : '#fee2e2'}; color: ${model.is_active ? '#059669' : '#dc2626'}; padding: 6px; border-radius: 4px; text-align: center; font-size: 0.85em; font-weight: bold;">
+                                    ${model.is_active ? '🟢 ACTIVE' : '🔴 INACTIVE'}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    modelsDiv.innerHTML = modelsHtml;
+                } else {
+                    modelsDiv.innerHTML = '<p class="note">No AI models registered yet.</p>';
+                }
+            } catch (err) {
+                statusDiv.innerHTML = '<p class="note error">Unable to load AI gateway status.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshWorkflows() {
+            const card = document.getElementById('workflows-card');
+            const container = document.getElementById('workflows-container');
+            try {
+                const data = await fetchJson('/api/phase2/workflows');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Workflows data unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+                const workflows = data.workflows || [];
+
+                if (workflows.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; background: #f8fafc; border-radius: 8px;">
+                            <p style="font-size: 1.1em; color: #666;">No workflows have been triggered yet.</p>
+                            <p style="color: #999; margin-top: 8px;">Workflows are created when control loop detects governance events.</p>
+                        </div>
+                    `;
+                } else {
+                    const workflowsHtml = workflows.slice(0, 10).map(workflow => {
+                        const statusColors = {
+                            'completed': '#10b981',
+                            'running': '#3b82f6',
+                            'pending': '#f59e0b',
+                            'failed': '#ef4444',
+                            'paused': '#8b5cf6'
+                        };
+                        const statusColor = statusColors[workflow.status] || '#6b7280';
+                        return `
+                            <div class="workflow-item" style="background: #f8fafc; border-left: 4px solid ${statusColor}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <h4 style="margin: 0; color: #111;">${workflow.name || 'Workflow ' + workflow.workflow_id}</h4>
+                                    <span style="background: ${statusColor}22; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">${workflow.status.toUpperCase()}</span>
+                                </div>
+                                <p style="margin: 8px 0; font-size: 0.9em; color: #555;">${workflow.description || 'N/A'}</p>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 0.85em; color: #666;">
+                                    <div>Steps: <strong style="color: #111;">${workflow.step_count || 0}</strong></div>
+                                    <div>Priority: <strong style="color: #111;">${workflow.priority || 'medium'}</strong></div>
+                                    <div>Started: <strong style="color: #111;">${workflow.started_at ? workflow.started_at.substring(0, 10) : 'N/A'}</strong></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    container.innerHTML = workflowsHtml;
+                }
+            } catch (err) {
+                container.innerHTML = '<p class="note error">Unable to load workflows.</p>';
+                console.error(err);
+            }
+        }
+
         async function refreshDashboard() {
             await refreshSummary();
             await refreshRegionSummary();
@@ -848,6 +1078,11 @@
             await refreshStrategicGoals();
             await refreshRiskDashboard();
             await refreshPhaseProgress();
+
+            // Phase 2: Control Loop & Gateway
+            await refreshControlLoopStatus();
+            await refreshAIGatewayStatus();
+            await refreshWorkflows();
         }
 
         refreshDashboard();
