@@ -201,13 +201,18 @@
             const omniversalCard = document.getElementById('omniversal-card');
             const multiversalCard = document.getElementById('multiversal-card');
             const continuumCard = document.getElementById('continuum-card');
+            // Phase 1 cards
+            const phase1Header = document.getElementById('phase1-header');
+            const strategicGoalsCard = document.getElementById('strategic-goals-card');
+            const riskDashboardCard = document.getElementById('risk-dashboard-card');
+            const phaseProgressCard = document.getElementById('phase-progress-card');
 
             try {
                 const roleData = await fetchJson('/role');
                 const role = roleData.role || 'unknown';
                 roleIndicator.textContent = `Signed in as: ${role.toUpperCase()}`;
                 if (role === 'admin') {
-                    roleNote.textContent = 'Admin access: full logs, export, and compliance features are enabled.';
+                    roleNote.textContent = 'Admin access: full logs, export, compliance features, and Phase 1 governance metrics are enabled.';
                     filterCard.classList.remove('hidden');
                     viewerSummaryCard.classList.add('hidden');
                     logsCard.classList.remove('hidden');
@@ -225,6 +230,11 @@
                     omniversalCard.classList.remove('hidden');
                     multiversalCard.classList.remove('hidden');
                     continuumCard.classList.remove('hidden');
+                    // Phase 1 cards for admin
+                    phase1Header.classList.remove('hidden');
+                    strategicGoalsCard.classList.remove('hidden');
+                    riskDashboardCard.classList.remove('hidden');
+                    phaseProgressCard.classList.remove('hidden');
                 } else {
                     roleNote.textContent = 'Viewer access: only summary data is available. Detailed logs and exports are restricted.';
                     filterCard.classList.add('hidden');
@@ -244,6 +254,11 @@
                     omniversalCard.classList.add('hidden');
                     multiversalCard.classList.add('hidden');
                     continuumCard.classList.add('hidden');
+                    // Phase 1 cards hidden for non-admin
+                    phase1Header.classList.add('hidden');
+                    strategicGoalsCard.classList.add('hidden');
+                    riskDashboardCard.classList.add('hidden');
+                    phaseProgressCard.classList.add('hidden');
                 }
                 return role;
             } catch (err) {
@@ -264,6 +279,11 @@
                 continuityCard.classList.add('hidden');
                 multiversalCard.classList.add('hidden');
                 continuumCard.classList.add('hidden');
+                // Phase 1 cards hidden on error
+                phase1Header.classList.add('hidden');
+                strategicGoalsCard.classList.add('hidden');
+                riskDashboardCard.classList.add('hidden');
+                phaseProgressCard.classList.add('hidden');
                 console.error(err);
                 return 'unknown';
             }
@@ -643,6 +663,7 @@
                 const goals = data.strategic_goals.map(goal => {
                     const kpiCards = goal.kpis.map(kpi => {
                         const statusColor = kpi.status === 'critical' ? '#ef4444' : kpi.status === 'warning' ? '#f59e0b' : '#10b981';
+                        const progress = kpi.progress_percent || 0;
                         return `
                             <div class="kpi-item" style="border-left: 4px solid ${statusColor}">
                                 <div class="kpi-header">
@@ -652,15 +673,19 @@
                                     </span>
                                 </div>
                                 <div class="kpi-progress-bar">
-                                    <div class="progress-fill" style="width: ${kpi.progress || 0}%; background-color: ${statusColor};"></div>
+                                    <div class="progress-fill" style="width: ${progress}%; background-color: ${statusColor};"></div>
                                 </div>
                                 <p style="margin: 8px 0 4px 0; font-size: 0.9em;">
                                     ${kpi.current_value} / ${kpi.target_value} ${kpi.unit || ''}
                                 </p>
-                                <p style="margin: 4px 0; font-size: 0.85em; color: #666;">Progress: ${Math.round(kpi.progress || 0)}%</p>
+                                <p style="margin: 4px 0; font-size: 0.85em; color: #666;">Progress: ${Math.round(progress)}%</p>
                             </div>
                         `;
                     }).join('');
+
+                    const goalProgress = goal.progress || 0;
+                    const goalStatus = goal.status || 'unknown';
+                    const statusColor = goalStatus === 'critical' ? '#ef4444' : goalStatus === 'warning' ? '#f59e0b' : '#10b981';
 
                     return `
                         <div class="goal-card">
@@ -672,8 +697,8 @@
                             </div>
                             <p style="margin: 8px 0; font-size: 0.95em; color: #555;">${goal.description}</p>
                             <div class="goal-status">
-                                <p><strong>Overall Status:</strong> <span style="color: #10b981; font-weight: bold;">${goal.overall_status}</span></p>
-                                <p><strong>Overall Progress:</strong> ${Math.round(goal.overall_progress || 0)}%</p>
+                                <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${goalStatus.toUpperCase()}</span></p>
+                                <p><strong>Progress:</strong> ${Math.round(goalProgress)}%</p>
                             </div>
                             <div class="kpis-container">
                                 ${kpiCards}
@@ -701,7 +726,9 @@
                 }
                 card.classList.remove('hidden');
 
-                const resilience = data.dashboard_summary.resilience_score || 0;
+                // Use overall_resilience from dashboard_summary
+                const resilience = data.dashboard_summary?.overall_resilience || 0;
+                const foresightConfidence = data.foresight_confidence || 0;
                 const resilientColor = resilience >= 80 ? '#10b981' : resilience >= 60 ? '#f59e0b' : '#ef4444';
 
                 summaryDiv.innerHTML = `
@@ -714,39 +741,48 @@
                                 </div>
                             </div>
                             <p style="text-align: center; margin-top: 12px; color: #555;">
-                                <strong>Foresight Confidence:</strong> ${Math.round((data.dashboard_summary.foresight_confidence || 0) * 100)}%
+                                <strong>Foresight Confidence:</strong> ${Math.round(foresightConfidence * 100)}%
                             </p>
                         </div>
                     </div>
                 `;
 
-                const scenarios = (data.scenarios || []).map(scenario => {
-                    const riskColor = scenario.scenario_type === 'risk' ? '#ef4444' : '#10b981';
+                // Use risk_scenarios from top level (or top_risks from dashboard_summary)
+                const topRisks = data.dashboard_summary?.top_risks || [];
+                const allScenarios = (data.risk_scenarios || []).concat(topRisks);
+
+                const scenarios = allScenarios.map((scenario, index) => {
+                    const riskColor = scenario.scenario_type === 'opportunity' ? '#10b981' : '#ef4444';
+                    const probability = scenario.probability || 0;
+                    const riskScore = scenario.risk_score || 0;
+                    const impactLevel = scenario.impact_level || 'medium';
+
                     return `
                         <div class="scenario-card" style="border-top: 3px solid ${riskColor}">
-                            <h4>${scenario.name}</h4>
-                            <p style="margin: 8px 0; font-size: 0.9em; color: #555;">${scenario.description}</p>
+                            <h4>${scenario.name || scenario.scenario_name || `Scenario ${index + 1}`}</h4>
+                            <p style="margin: 8px 0; font-size: 0.9em; color: #555;">${scenario.description || scenario.impact_description || 'N/A'}</p>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                                 <div>
                                     <p style="font-size: 0.85em; color: #666;">Probability</p>
-                                    <p style="font-size: 1.1em; font-weight: bold; color: ${riskColor};">${Math.round(scenario.probability * 100)}%</p>
+                                    <p style="font-size: 1.1em; font-weight: bold; color: ${riskColor};">${Math.round(probability * 100)}%</p>
                                 </div>
                                 <div>
                                     <p style="font-size: 0.85em; color: #666;">Risk Score</p>
-                                    <p style="font-size: 1.1em; font-weight: bold; color: ${riskColor};">${Math.round(scenario.risk_score)}</p>
+                                    <p style="font-size: 1.1em; font-weight: bold; color: ${riskColor};">${Math.round(riskScore)}</p>
                                 </div>
                             </div>
                             <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
-                                <p style="font-size: 0.85em; color: #666;"><strong>Mitigation:</strong></p>
+                                <p style="font-size: 0.85em; color: #666;"><strong>Impact:</strong> ${impactLevel}</p>
+                                ${scenario.mitigation_actions ? `<p style="font-size: 0.85em; color: #666;"><strong>Mitigation:</strong></p>
                                 <ul style="margin: 6px 0 0 16px; font-size: 0.9em;">
                                     ${(scenario.mitigation_actions || []).slice(0, 2).map(action => `<li>${action}</li>`).join('')}
-                                </ul>
+                                </ul>` : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
 
-                scenariosDiv.innerHTML = scenarios || '<p class="note">No risk scenarios available.</p>';
+                scenariosDiv.innerHTML = scenarios || '<p class="note">No risk scenarios available yet. Check back as governance models generate predictions.</p>';
             } catch (err) {
                 summaryDiv.innerHTML = '<p class="note error">Unable to load risk dashboard.</p>';
                 console.error(err);
