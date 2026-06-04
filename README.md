@@ -49,6 +49,18 @@ A Flask-based Email Automation Dashboard with session-authenticated admin access
    ```
 - Optionally deploy to a platform that supports Python web apps, such as Heroku, Azure App Service, or a containerized environment.
 
+### Azure App Service
+
+1. Add `gunicorn` to `requirements.txt`.
+2. Deploy the app files to Azure App Service using GitHub integration, local Git, or zip deployment.
+3. Set the App Service startup command to:
+   ```bash
+   gunicorn --bind 0.0.0.0:$PORT dashboard:app
+   ```
+4. Configure environment variables in App Service settings:
+   - `FLASK_SECRET_KEY`
+   - any file path or secrets the app requires
+
 ## GitHub
 
 Published at: https://github.com/jasonnorman67889-code/shiny-carnival
