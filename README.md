@@ -48,6 +48,7 @@ A Flask-based Email Automation Dashboard with session-authenticated admin access
    gunicorn --bind 0.0.0.0:8000 dashboard:app
    ```
 - Optionally deploy to a platform that supports Python web apps, such as Heroku, Azure App Service, or a containerized environment.
+- This repository includes a `Dockerfile`, `.dockerignore`, and `Procfile` for container deployment and Heroku-style startup.
 
 ### Azure App Service
 
