@@ -28,6 +28,27 @@ A Flask-based Email Automation Dashboard with session-authenticated admin access
 - admin / adminpass
 - viewer / viewerpass
 
+## Testing
+
+1. Install test dependencies (if needed):
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Run the test suite:
+   ```bash
+   pytest
+   ```
+
+## Deployment
+
+- Ensure `FLASK_SECRET_KEY` is set for production security.
+- Configure environment variables for any paths or secrets used by the app.
+- Use a WSGI server such as Gunicorn for production hosting:
+   ```bash
+   gunicorn --bind 0.0.0.0:8000 dashboard:app
+   ```
+- Optionally deploy to a platform that supports Python web apps, such as Heroku, Azure App Service, or a containerized environment.
+
 ## GitHub
 
 Published at: https://github.com/jasonnorman67889-code/shiny-carnival
