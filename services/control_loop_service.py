@@ -7,7 +7,7 @@ Manages detection → evaluation → decision → execution → feedback cycles.
 
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Tuple
 import json
 import os
@@ -23,6 +23,10 @@ from models.workflow_models import (
 )
 from models.strategic_goals import KPI, StrategicGoal, ForesightScenario, RiskDashboard
 from services.foresight_service import ForesightService
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class ControlLoopService:
@@ -288,7 +292,7 @@ class ControlLoopService:
         for workflow in workflows:
             try:
                 workflow.status = WorkflowStatus.RUNNING
-                workflow.started_at = datetime.utcnow().isoformat()
+                workflow.started_at = utc_now_iso()
                 workflow.execution_count += 1
 
                 start_time = time.time()
@@ -296,16 +300,16 @@ class ControlLoopService:
                 # Execute each step
                 for step in workflow.steps:
                     step.status = WorkflowStatus.RUNNING
-                    step.executed_at = datetime.utcnow().isoformat()
+                    step.executed_at = utc_now_iso()
 
                     # Simulate step execution
                     time.sleep(0.1)  # Simulate work
-                    step.outputs = {"result": "success", "timestamp": datetime.utcnow().isoformat()}
+                    step.outputs = {"result": "success", "timestamp": utc_now_iso()}
                     step.status = WorkflowStatus.COMPLETED
                     step.duration_seconds = time.time() - start_time
 
                 workflow.status = WorkflowStatus.COMPLETED
-                workflow.completed_at = datetime.utcnow().isoformat()
+                workflow.completed_at = utc_now_iso()
                 workflow.success_count += 1
                 success_count += 1
                 executed_ids.append(workflow.workflow_id)
@@ -332,7 +336,7 @@ class ControlLoopService:
                 "delivery_success_rate": success_rate,
                 "compliance_status": "pending" if pending_count > 0 else "clear",
                 "pending_audits": pending_count,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": utc_now_iso(),
             }
         except Exception as e:
             print(f"Error collecting feedback: {e}")
@@ -343,6 +347,7 @@ class ControlLoopService:
         Execute one complete control loop cycle
         Returns: Cycle summary
         """
+        self.control_loop_active = True
         self.last_cycle_number += 1
         cycle_id = f"cycle_{uuid.uuid4().hex[:12]}"
         cycle = ControlLoopCycle(
@@ -388,6 +393,7 @@ class ControlLoopService:
             cycle.status = "failed"
 
         self.cycles.append(cycle)
+        self.control_loop_active = False
         return cycle
 
     def get_control_loop_status(self) -> Dict[str, Any]:
@@ -402,7 +408,7 @@ class ControlLoopService:
             "recent_cycles": [cycle.to_dict() for cycle in recent_cycles],
             "workflow_count": len(self.workflows),
             "event_queue_size": len(self.event_queue),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now_iso(),
         }
 
     def get_workflow_status(self, workflow_id: str) -> Optional[Dict[str, Any]]:

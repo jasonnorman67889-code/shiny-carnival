@@ -5,8 +5,12 @@ Defines enterprise strategic objectives, KPIs, and foresight scenarios.
 
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -20,7 +24,7 @@ class KPI:
     threshold_warning: float
     unit: str
     description: str
-    last_updated: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    last_updated: str = field(default_factory=utc_now_iso)
 
     def status(self) -> str:
         """Determine KPI status: critical, warning, healthy."""
@@ -48,7 +52,7 @@ class StrategicGoal:
     status: str  # 'active', 'paused', 'completed'
     kpis: List[KPI] = field(default_factory=list)
     owner: str = "Governance"
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=utc_now_iso)
     target_date: Optional[str] = None
 
     def add_kpi(self, kpi: KPI) -> None:
@@ -86,7 +90,7 @@ class ForesightScenario:
     mitigation_actions: List[str]
     scenario_type: str  # 'risk', 'opportunity', 'disruption'
     confidence_score: float  # 0-1, AI model confidence
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=utc_now_iso)
 
     def risk_score(self) -> float:
         """Calculate composite risk score (0-100)."""
@@ -101,7 +105,7 @@ class ForesightScenario:
 @dataclass
 class RiskDashboard:
     """Aggregate view of strategic risks and resilience."""
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=utc_now_iso)
     scenarios: List[ForesightScenario] = field(default_factory=list)
     strategic_goals: List[StrategicGoal] = field(default_factory=list)
     resilience_score: float = 0.0

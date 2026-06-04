@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Email Automation Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+<body>
+    <div class="login-panel">
+        <div class="brand">
+            <div class="brand-dot"></div>
+            <div>
+                        <div class="brand-label">Email Automation</div>
+                <div class="brand-title">Dashboard Sign-in</div>
+            </div>
+        </div>
+        <p class="helper">Securely sign in to review dashboard metrics, analytics insights, and alerts.</p>
+        <div class="hint">
+            <strong>Demo credentials:</strong> admin / adminpass or viewer / viewerpass
+        </div>
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="post" action="/login">
+            <div class="field">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" required autocomplete="username" />
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" required autocomplete="current-password" />
+            </div>
+            <button type="submit">Sign in</button>
+        </form>
+    </div>
+</body>
+</html>

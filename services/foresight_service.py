@@ -6,7 +6,7 @@ Implements predictive analytics and scenario forecasting for strategic planning.
 import json
 import csv
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple
 from models.strategic_goals import (
     KPI,
@@ -14,6 +14,24 @@ from models.strategic_goals import (
     ForesightScenario,
     RiskDashboard,
 )
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def utc_now_iso() -> str:
+    return utc_now().isoformat()
+
+
+def parse_utc_datetime(value: str, default: datetime) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return default
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 class ForesightService:
@@ -83,13 +101,12 @@ class ForesightService:
                 total = len(opt_outs)
 
                 # Calculate recent trend (last 7 days)
-                now = datetime.utcnow()
+                now = utc_now()
                 seven_days_ago = now - timedelta(days=7)
                 recent = sum(
                     1
                     for entry in opt_outs
-                    if datetime.fromisoformat(entry.get("timestamp", now.isoformat()))
-                    >= seven_days_ago
+                    if parse_utc_datetime(entry.get("timestamp", now.isoformat()), now) >= seven_days_ago
                 )
                 trend = (recent / max(1, total)) * 100
 
@@ -116,7 +133,7 @@ class ForesightService:
             priority="critical",
             status="active",
             owner="Operations",
-            target_date=(datetime.utcnow() + timedelta(days=90)).isoformat(),
+            target_date=(utc_now() + timedelta(days=90)).isoformat(),
         )
         goal_1.add_kpi(
             KPI(
@@ -153,7 +170,7 @@ class ForesightService:
             priority="critical",
             status="active",
             owner="Compliance",
-            target_date=(datetime.utcnow() + timedelta(days=60)).isoformat(),
+            target_date=(utc_now() + timedelta(days=60)).isoformat(),
         )
         goal_2.add_kpi(
             KPI(
@@ -190,7 +207,7 @@ class ForesightService:
             priority="high",
             status="active",
             owner="Marketing",
-            target_date=(datetime.utcnow() + timedelta(days=90)).isoformat(),
+            target_date=(utc_now() + timedelta(days=90)).isoformat(),
         )
         goal_3.add_kpi(
             KPI(
@@ -382,7 +399,7 @@ class ForesightService:
 
         return {
             "phase": "Phase 1: Strategic Foundations",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now_iso(),
             "strategic_goals": [
                 {
                     "goal_id": g.goal_id,

@@ -8,10 +8,14 @@ Provides a unified interface to multiple AI services (Foresight, Orchestration, 
 import time
 import uuid
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from models.workflow_models import AIModelConfig, AIGateway
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class AIGatewayService:
@@ -156,7 +160,7 @@ class AIGatewayService:
             "latency_ms": 0.0,
             "result": None,
             "error": None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now_iso(),
         }
 
         start_time = time.time()
@@ -307,7 +311,7 @@ class AIGatewayService:
                 "success_rate": f"{self.gateway.get_success_rate():.2f}%",
                 "average_latency_ms": f"{self.gateway.get_average_latency_ms():.2f}",
             },
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now_iso(),
         }
 
     def get_model_performance(self, model_id: str) -> Optional[Dict[str, Any]]:

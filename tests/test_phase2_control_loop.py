@@ -12,7 +12,7 @@ import json
 import os
 import tempfile
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from models.workflow_models import (
     Workflow, WorkflowStep, WorkflowStatus, EventType, EventPriority,
@@ -243,7 +243,7 @@ class TestControlLoopService:
             # Write sample opt-out history
             with open(opt_out_file, "w") as f:
                 json.dump([
-                    {"email": "test@test.com", "timestamp": datetime.utcnow().isoformat()}
+                    {"email": "test@test.com", "timestamp": datetime.now(timezone.utc).isoformat()}
                 ], f)
             
             # Write sample users CSV

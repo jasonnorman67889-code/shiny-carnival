@@ -7,9 +7,17 @@ and adaptive governance control loops.
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import json
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def utc_now_iso() -> str:
+    return utc_now().isoformat()
 
 
 class WorkflowStatus(Enum):
@@ -82,7 +90,7 @@ class Workflow:
     steps: List[WorkflowStep] = field(default_factory=list)
     status: WorkflowStatus = WorkflowStatus.PENDING
     priority: EventPriority = EventPriority.MEDIUM
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=utc_now_iso)
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
     execution_count: int = 0
@@ -140,14 +148,14 @@ class GovernanceEvent:
     priority: EventPriority
     source: str  # Which service/component generated the event
     data: Dict[str, Any]
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=utc_now_iso)
     processed_at: Optional[str] = None
     triggered_workflows: List[str] = field(default_factory=list)
     resolution_status: str = "pending"  # "pending", "resolved", "escalated"
 
     def mark_processed(self) -> None:
         """Mark event as processed"""
-        self.processed_at = datetime.utcnow().isoformat()
+        self.processed_at = utc_now_iso()
 
     def add_triggered_workflow(self, workflow_id: str) -> None:
         """Add a workflow triggered by this event"""
@@ -178,7 +186,7 @@ class ControlLoopCycle:
     decisions_made: int = 0
     adaptations_applied: int = 0
     duration_seconds: float = 0.0
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=utc_now_iso)
     status: str = "in_progress"  # "in_progress", "completed", "failed"
     metrics: Dict[str, Any] = field(default_factory=dict)
     error_log: List[str] = field(default_factory=list)
@@ -238,7 +246,7 @@ class AIModelConfig:
     capabilities: List[str] = field(default_factory=list)
     rate_limit: int = 1000  # requests per minute
     timeout_seconds: int = 30
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -266,7 +274,7 @@ class AIGateway:
     success_count: int = 0
     error_count: int = 0
     total_latency_ms: float = 0.0
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=utc_now_iso)
 
     def register_model(self, model: AIModelConfig) -> None:
         """Register an AI model"""

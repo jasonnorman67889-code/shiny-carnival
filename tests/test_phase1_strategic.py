@@ -8,7 +8,7 @@ import json
 import csv
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from models.strategic_goals import KPI, StrategicGoal, ForesightScenario, RiskDashboard
 from services.foresight_service import ForesightService
 
@@ -51,7 +51,7 @@ def temp_data_dir():
         # Create sample opt-out file
         opt_out_file = os.path.join(tmpdir, "opt_out_history.json")
         with open(opt_out_file, "w") as f:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             opt_outs = [
                 {
                     "email": "unsubscribe1@example.com",

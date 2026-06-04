@@ -9,9 +9,17 @@
 </head>
 
 <body>
+    <div id="app-toolbar" class="toolbar">
+        <div class="toolbar-left">
+            <h1>Email Automation Dashboard</h1>
+        </div>
+        <div class="toolbar-right">
+            <a class="button secondary" href="/logout">Logout</a>
+        </div>
+    </div>
+    <div id="login-toast" class="login-toast"></div>
     <div class="card">
-        <h1>Email Automation Dashboard</h1>
-        <p>This dashboard uses Basic Auth and role-based access. Admins can view logs and export filtered results.</p>
+        <p>This dashboard uses session-based access and role-aware views. Admins can view logs, exports, and governance insights.</p>
         <div id="summary" class="grid"></div>
         <div id="region-summary-card" class="grid hidden"></div>
         <div id="transformation-card" class="card hidden">
@@ -54,6 +62,7 @@
             <h2>Eternal Governance Continuum</h2>
             <div id="continuum-content"></div>
         </div>
+        <div id="welcome-message" class="welcome-message"></div>
         <div id="role-indicator" class="role-indicator"></div>
         <div id="role-note" class="note"></div>
     </div>
@@ -146,6 +155,28 @@
         <div id="workflows-container" class="workflows-container"></div>
     </div>
 
+    <!-- Phase 3: Visualization Layer -->
+    <div id="phase3-header" class="phase-header hidden">
+        <h2>📈 Phase 3: Visualization Layer</h2>
+        <p>Advanced analytics, historical trends, and predictive alerts for governance visibility.</p>
+    </div>
+
+    <div id="analytics-overview-card" class="card hidden">
+        <h2>Analytics Overview</h2>
+        <div id="analytics-overview-grid" class="analytics-grid"></div>
+        <div id="analytics-insights" class="key-insights"></div>
+    </div>
+
+    <div id="analytics-history-card" class="card hidden">
+        <h2>Historical Trend Analysis</h2>
+        <div id="analytics-history-chart" class="chart-container"></div>
+    </div>
+
+    <div id="analytics-alerts-card" class="card hidden">
+        <h2>Predictive Alerts & Anomalies</h2>
+        <div id="analytics-alerts-container" class="alerts-container"></div>
+    </div>
+
     <div id="logs-card" class="card hidden">
         <h2>Filtered Logs</h2>
         <table>
@@ -166,7 +197,18 @@
     <script src="https://cdn.plot.ly/plotly-2.34.0.min.js"></script>
     <script>
         async function fetchJson(path) {
-            const response = await fetch(path);
+            const url = new URL(path, window.location.origin);
+            url.username = '';
+            url.password = '';
+            const response = await fetch(url.toString(), { credentials: 'same-origin' });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const text = await response.text();
+                throw new Error(`Fetch error ${response.status}: ${response.statusText} ${text}`);
+            }
             return response.json();
         }
 
@@ -234,11 +276,24 @@
             const controlLoopCard = document.getElementById('control-loop-card');
             const aiGatewayCard = document.getElementById('ai-gateway-card');
             const workflowsCard = document.getElementById('workflows-card');
+            const phase3Header = document.getElementById('phase3-header');
+            const analyticsOverviewCard = document.getElementById('analytics-overview-card');
+            const analyticsHistoryCard = document.getElementById('analytics-history-card');
+            const analyticsAlertsCard = document.getElementById('analytics-alerts-card');
 
             try {
                 const roleData = await fetchJson('/role');
                 const role = roleData.role || 'unknown';
+                const username = roleData.username || 'user';
+                const welcomeMessage = document.getElementById('welcome-message');
+                welcomeMessage.textContent = `Welcome back, ${username}!`;
+                welcomeMessage.classList.remove('hidden');
                 roleIndicator.textContent = `Signed in as: ${role.toUpperCase()}`;
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('welcome') === '1') {
+                    showLoginToast(`Welcome back, ${username}! You are now signed in.`);
+                    window.history.replaceState({}, '', window.location.pathname);
+                }
                 if (role === 'admin') {
                     roleNote.textContent = 'Admin access: full logs, export, compliance features, and Phase 1 governance metrics are enabled.';
                     filterCard.classList.remove('hidden');
@@ -268,8 +323,14 @@
                     controlLoopCard.classList.remove('hidden');
                     aiGatewayCard.classList.remove('hidden');
                     workflowsCard.classList.remove('hidden');
+                    phase3Header.classList.remove('hidden');
+                    analyticsOverviewCard.classList.remove('hidden');
+                    analyticsHistoryCard.classList.remove('hidden');
+                    analyticsAlertsCard.classList.remove('hidden');
                 } else {
                     roleNote.textContent = 'Viewer access: only summary data is available. Detailed logs and exports are restricted.';
+                welcomeMessage.textContent = `Welcome back, ${username}!`;
+                welcomeMessage.classList.remove('hidden');
                     filterCard.classList.add('hidden');
                     viewerSummaryCard.classList.remove('hidden');
                     logsCard.classList.add('hidden');
@@ -297,11 +358,17 @@
                     controlLoopCard.classList.add('hidden');
                     aiGatewayCard.classList.add('hidden');
                     workflowsCard.classList.add('hidden');
+                    phase3Header.classList.add('hidden');
+                    analyticsOverviewCard.classList.add('hidden');
+                    analyticsHistoryCard.classList.add('hidden');
+                    analyticsAlertsCard.classList.add('hidden');
                 }
                 return role;
             } catch (err) {
                 roleIndicator.textContent = 'Unable to determine role';
                 roleNote.textContent = 'Unable to verify access level.';
+                welcomeMessage.textContent = 'Welcome back!';
+                welcomeMessage.classList.remove('hidden');
                 filterCard.classList.add('hidden');
                 viewerSummaryCard.classList.remove('hidden');
                 logsCard.classList.add('hidden');
@@ -330,6 +397,13 @@
                 console.error(err);
                 return 'unknown';
             }
+        }
+
+        function showLoginToast(message) {
+            const toast = document.getElementById('login-toast');
+            toast.textContent = message;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 4200);
         }
 
         async function refreshLogs() {
@@ -841,11 +915,11 @@
                 // Sprint phases with estimated completion percentages
                 const phases = [
                     { name: 'Strategic Foundations', progress: 100, color: '#3b82f6', status: 'completed' },
-                    { name: 'Control Loop & Gateway', progress: 0, color: '#f59e0b', status: 'pending' },
-                    { name: 'Visualization Layer', progress: 0, color: '#10b981', status: 'pending' },
-                    { name: 'Data Integration', progress: 0, color: '#8b5cf6', status: 'pending' },
-                    { name: 'Full Governance', progress: 0, color: '#ef4444', status: 'pending' },
-                    { name: 'AI Companions', progress: 0, color: '#6b7280', status: 'pending' }
+                    { name: 'Control Loop & Gateway', progress: 70, color: '#f59e0b', status: 'in progress' },
+                    { name: 'Visualization Layer', progress: 30, color: '#10b981', status: 'in progress' },
+                    { name: 'Data Integration', progress: 20, color: '#8b5cf6', status: 'planning' },
+                    { name: 'Full Governance', progress: 15, color: '#ef4444', status: 'planning' },
+                    { name: 'AI Companions', progress: 10, color: '#6b7280', status: 'planning' }
                 ];
 
                 const html = phases.map(phase => `
@@ -906,7 +980,13 @@
                         <div style="font-size: 1.8em; font-weight: bold; color: #8b5cf6;">${status.event_queue_size}</div>
                     </div>
                 `;
-                metricsDiv.innerHTML = metricsHtml;
+                const buttonHtml = `
+                    <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                        <button id="run-control-loop" class="button">Run Control Loop Cycle</button>
+                    </div>
+                `;
+                metricsDiv.innerHTML = metricsHtml + buttonHtml;
+                document.getElementById('run-control-loop').addEventListener('click', runControlLoopCycle);
 
                 // Recent cycles display
                 if (status.recent_cycles && status.recent_cycles.length > 0) {
@@ -924,6 +1004,38 @@
             } catch (err) {
                 metricsDiv.innerHTML = '<p class="note error">Unable to load control loop status.</p>';
                 console.error(err);
+            }
+        }
+
+        async function runControlLoopCycle() {
+            const button = document.getElementById('run-control-loop');
+            if (!button) {
+                return;
+            }
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Running cycle...';
+            try {
+                const response = await fetch('/api/phase2/control-loop-cycle', {
+                    method: 'POST',
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') {
+                    throw new Error(data.error || response.statusText || 'Unable to execute control loop cycle');
+                }
+                showLoginToast('Control loop cycle executed successfully.');
+                await refreshControlLoopStatus();
+            } catch (err) {
+                console.error(err);
+                const card = document.getElementById('control-loop-card');
+                const metricsDiv = document.getElementById('control-loop-metrics');
+                if (metricsDiv) {
+                    metricsDiv.innerHTML += `<p class="note error">${err.message}</p>`;
+                }
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
             }
         }
 
@@ -1057,6 +1169,107 @@
             }
         }
 
+        async function refreshAnalyticsOverview() {
+            const card = document.getElementById('analytics-overview-card');
+            const overviewGrid = document.getElementById('analytics-overview-grid');
+            const insightsContainer = document.getElementById('analytics-insights');
+            try {
+                const data = await fetchJson('/api/phase3/analytics-overview');
+                if (data.error) {
+                    overviewGrid.innerHTML = '<p class="note error">Analytics overview unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+                const summary = data.summary || {};
+                const dashboard = data.analytics_dashboard || {};
+                const cards = [
+                    { title: 'Metrics Tracked', value: summary.unique_metrics || 0 },
+                    { title: 'Data Points', value: summary.data_points_stored || 0 },
+                    { title: 'Critical Alerts', value: (dashboard.alerts_active || []).length || 0 },
+                    { title: 'Anomalies Detected', value: (dashboard.anomalies_detected || []).length || 0 }
+                ];
+                overviewGrid.innerHTML = cards.map(cardItem => `
+                    <div class="metric-box" style="padding: 18px; border-radius: 12px; background: #f8fafc;">
+                        <p class="metric-label">${cardItem.title}</p>
+                        <p class="metric-value">${cardItem.value}</p>
+                    </div>
+                `).join('');
+
+                const insights = (dashboard.key_insights || []).slice(0, 3).map(item => `<li>${item}</li>`).join('');
+                insightsContainer.innerHTML = `
+                    <h3>Key Insights</h3>
+                    <ul class="insight-list">${insights}</ul>
+                `;
+            } catch (err) {
+                overviewGrid.innerHTML = '<p class="note error">Unable to load analytics overview.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshAnalyticsHistory() {
+            const card = document.getElementById('analytics-history-card');
+            try {
+                const data = await fetchJson('/api/phase3/analytics-history?metric=control_loop_events_processed&hours=72');
+                if (data.error) {
+                    document.getElementById('analytics-history-chart').innerHTML = '<p class="note error">Analytics history unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+                const history = data.history || [];
+                if (!history.length) {
+                    document.getElementById('analytics-history-chart').innerHTML = '<p class="note">No historical data available yet.</p>';
+                    return;
+                }
+                const x = history.map(point => point.timestamp);
+                const y = history.map(point => point.value);
+                Plotly.newPlot('analytics-history-chart', [{ x, y, mode: 'lines+markers', marker: { color: '#10b981' }, line: { shape: 'spline' } }], {
+                    title: 'Control Loop Events Processed - Last 72h',
+                    xaxis: { title: 'Timestamp' },
+                    yaxis: { title: 'Events Processed' },
+                    margin: { t: 40, l: 40, r: 20, b: 40 }
+                }, { responsive: true });
+            } catch (err) {
+                document.getElementById('analytics-history-chart').innerHTML = '<p class="note error">Unable to render analytics history chart.</p>';
+                console.error(err);
+            }
+        }
+
+        async function refreshAnalyticsAlerts() {
+            const card = document.getElementById('analytics-alerts-card');
+            const container = document.getElementById('analytics-alerts-container');
+            try {
+                const data = await fetchJson('/api/phase3/analytics-alerts');
+                if (data.error) {
+                    container.innerHTML = '<p class="note error">Analytics alerts unavailable.</p>';
+                    return;
+                }
+                card.classList.remove('hidden');
+                const alerts = data.alerts || [];
+                const anomalies = data.anomalies || [];
+                const alertItems = alerts.map(alert => `
+                    <div class="alert-card">
+                        <h4>${alert.alert_type}</h4>
+                        <p>${alert.predicted_event || alert.alert_type}</p>
+                        <p><strong>Severity:</strong> ${alert.severity}</p>
+                    </div>
+                `).join('');
+                const anomalyItems = anomalies.map(item => `
+                    <div class="alert-card">
+                        <h4>${item.metric_name} anomaly</h4>
+                        <p>${item.description}</p>
+                        <p><strong>Severity Score:</strong> ${item.severity_score}</p>
+                    </div>
+                `).join('');
+                container.innerHTML = `
+                    <div class="alerts-grid">${alertItems || '<p class="note">No alerts active.</p>'}</div>
+                    <div class="alerts-grid">${anomalyItems || '<p class="note">No anomalies currently flagged.</p>'}</div>
+                `;
+            } catch (err) {
+                container.innerHTML = '<p class="note error">Unable to load analytics alerts.</p>';
+                console.error(err);
+            }
+        }
+
         async function refreshDashboard() {
             await refreshSummary();
             await refreshRegionSummary();
@@ -1083,6 +1296,11 @@
             await refreshControlLoopStatus();
             await refreshAIGatewayStatus();
             await refreshWorkflows();
+
+            // Phase 3: Visualization Layer
+            await refreshAnalyticsOverview();
+            await refreshAnalyticsHistory();
+            await refreshAnalyticsAlerts();
         }
 
         refreshDashboard();

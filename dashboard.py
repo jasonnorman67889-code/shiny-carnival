@@ -1,16 +1,22 @@
 import csv
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 
-from flask import Flask, Response, jsonify, render_template, request, g
+from flask import Flask, Response, jsonify, render_template, request, g, session, redirect, url_for
 
 from services.foresight_service import ForesightService
 from services.control_loop_service import ControlLoopService
 from services.ai_gateway_service import AIGatewayService
+from services.analytics_service import AnalyticsService
+from services.analytics_v1 import AnalyticsServiceV1
+from services.storage import DatabaseEngine
+from services.observability import OperationalMetricsCollector
+from middleware.auth import is_authenticated, get_current_user
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-key-change-in-production")
 
 # Simple role-based users. Replace passwords with secure values in production.
 users = {
@@ -29,6 +35,16 @@ CSV_FILE_PATH = os.getenv("CSV_FILE_PATH", "users.csv")
 foresight_service = ForesightService(".")
 control_loop_service = ControlLoopService(".")
 ai_gateway_service = AIGatewayService()
+
+# Initialize Phase 3/4 persistence and observability
+db = DatabaseEngine("analytics_platform.db")
+analytics_service = AnalyticsService(db=db)
+analytics_v1 = AnalyticsServiceV1(db=db)
+metrics_collector = OperationalMetricsCollector()
+
+
+def utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def load_opt_outs():
@@ -129,21 +145,34 @@ def authenticate():
 <body>
   <div class=\"page\">
     <h1>Login required</h1>
-    <p>Basic authentication is required to access this dashboard.</p>
+    <p>Authentication is required to access this dashboard.</p>
   </div>
 </body>
 </html>"""
+    if request.path.startswith('/api'):
+        return jsonify({"error": "Authentication required"}), 401
     return Response(html, 401, {"WWW-Authenticate": 'Basic realm="Login Required"', "Content-Type": "text/html; charset=utf-8"})
 
 
 @app.before_request
 def require_login():
-    if request.path == "/unsubscribe":
+    exempt_paths = ["/unsubscribe", "/health", "/login", "/logout", "/role"]
+    if request.path.startswith('/static/') or request.path in exempt_paths:
         return None
+
+    user_session = session.get("user")
+    if user_session:
+        g.role = user_session.get("role", "viewer")
+        return None
+
     auth = request.authorization
-    if not auth or not check_auth(auth.username, auth.password):
+    if auth and check_auth(auth.username, auth.password):
+        g.role = users[auth.username]["role"]
+        return None
+
+    if request.path.startswith('/api'):
         return authenticate()
-    g.role = users[auth.username]["role"]
+    return redirect(url_for('login'))
 
 
 def load_log_lines():
@@ -205,7 +234,45 @@ def compliance_report():
 
 @app.route("/")
 def index():
+    if "user" in session:
+        return redirect(url_for("dashboard_page"))
+    return redirect(url_for("login"))
+
+
+@app.route("/dashboard")
+def dashboard_page():
     return render_template("dashboard.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if "user" in session:
+        return redirect(url_for("dashboard_page"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        if check_auth(username, password):
+            session["user"] = {"username": username, "role": users[username]["role"]}
+            return redirect(url_for("dashboard_page", welcome="1"))
+        return render_template("login.html", error="Invalid username or password")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("login"))
+
+
+@app.route("/role")
+def user_role():
+    if "user" in session:
+        return jsonify({"role": session["user"]["role"], "username": session["user"]["username"]})
+    auth = request.authorization
+    if auth and check_auth(auth.username, auth.password):
+        return jsonify({"role": users[auth.username]["role"], "username": auth.username})
+    return jsonify({"role": "anonymous"}), 401
 
 
 def load_region_counts_from_logs():
@@ -223,6 +290,17 @@ def parse_iso_timestamp(value):
         return datetime.fromisoformat(value)
     except Exception:
         return None
+
+
+def parse_percentage(value):
+    try:
+        return float(str(value).strip().rstrip('%'))
+    except Exception:
+        return 0.0
+
+
+def ingest_phase3_data_from_feeds():
+    analytics_service.ingest_data_feeds(load_batch_summary(), load_log_lines())
 
 
 def load_transformation_insights():
@@ -726,10 +804,12 @@ def strategic_goals():
     
     foresight = ForesightService(data_dir="data")
     goals = foresight.build_strategic_goals()
-    
+    if goals and goals[0].kpis:
+        analytics_service.track_metric("delivery_success_rate", goals[0].kpis[0].current_value, tags={"phase": "phase1"})
+
     return jsonify({
         "phase": "Phase 1: Strategic Foundations",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now_iso(),
         "strategic_goals": [
             {
                 "goal_id": g.goal_id,
@@ -769,7 +849,7 @@ def risk_scenarios():
     
     return jsonify({
         "phase": "Phase 1: Strategic Foundations",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now_iso(),
         "risk_scenarios": [
             {
                 "scenario_id": s.scenario_id,
@@ -810,11 +890,31 @@ def execute_control_loop_cycle():
     
     try:
         cycle = control_loop_service.run_control_loop_cycle()
+        analytics_service.track_metric(
+            "control_loop_events_processed",
+            cycle.events_processed,
+            tags={"phase": "control_loop"}
+        )
+        analytics_service.track_metric(
+            "control_loop_workflows_triggered",
+            cycle.workflows_triggered,
+            tags={"phase": "control_loop"}
+        )
+        analytics_service.track_metric(
+            "control_loop_duration_seconds",
+            cycle.duration_seconds,
+            tags={"phase": "control_loop"}
+        )
+        analytics_service.track_metric(
+            "control_loop_decisions_made",
+            cycle.decisions_made,
+            tags={"phase": "control_loop"}
+        )
         return jsonify({
             "phase": "Phase 2: Control Loop & Gateway",
             "status": "success",
             "cycle": cycle.to_dict(),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now_iso()
         })
     except Exception as e:
         return jsonify({
@@ -833,7 +933,7 @@ def control_loop_status():
     return jsonify({
         "phase": "Phase 2: Control Loop & Gateway",
         "control_loop_status": control_loop_service.get_control_loop_status(),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": utc_now_iso()
     })
 
 
@@ -843,10 +943,96 @@ def ai_gateway_status():
     if g.role != "admin":
         return jsonify({"error": "Access denied"}), 403
     
+    gateway_status = ai_gateway_service.get_gateway_status()
+    analytics_service.track_metric(
+        "ai_gateway_active_models",
+        gateway_status.get("active_models", 0),
+        tags={"phase": "ai_gateway"}
+    )
+    analytics_service.track_metric(
+        "ai_gateway_average_latency_ms",
+        gateway_status.get("inference_metrics", {}).get("average_latency_ms", 0),
+        tags={"phase": "ai_gateway"}
+    )
+    analytics_service.track_metric(
+        "ai_gateway_success_rate",
+        parse_percentage(gateway_status.get("inference_metrics", {}).get("success_rate", 0)),
+        tags={"phase": "ai_gateway"}
+    )
+
     return jsonify({
         "phase": "Phase 2: Control Loop & Gateway",
-        "gateway_status": ai_gateway_service.get_gateway_status(),
-        "timestamp": datetime.utcnow().isoformat()
+        "gateway_status": gateway_status,
+        "timestamp": utc_now_iso()
+    })
+
+
+@app.route("/api/phase3/analytics-overview")
+def analytics_overview():
+    """Get analytics overview for Phase 3 visualizations."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+
+    ingest_phase3_data_from_feeds()
+    metrics = request.args.get(
+        "metrics",
+        "control_loop_events_processed,control_loop_workflows_triggered,control_loop_duration_seconds,ai_gateway_active_models,ai_gateway_average_latency_ms,ai_gateway_success_rate"
+    )
+    metric_list = [m.strip() for m in metrics.split(",") if m.strip()]
+    dashboard = analytics_service.build_analytics_dashboard(metric_list)
+    cached_overview = analytics_v1.get_cached_analytics_overview()
+
+    return jsonify({
+        "phase": "Phase 3: Visualization Layer",
+        "timestamp": utc_now_iso(),
+        "analytics_dashboard": dashboard.to_dict(),
+        "cached_overview": cached_overview,
+        "summary": analytics_service.get_summary()
+    })
+
+
+@app.route("/api/phase3/analytics-history")
+def analytics_history():
+    """Get historical metric data for Phase 3 visualizations."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+
+    ingest_phase3_data_from_feeds()
+    metric_name = request.args.get("metric", "control_loop_events_processed")
+    hours = int(request.args.get("hours", 72))
+    history = analytics_v1.get_metric_history(metric_name, hours)
+
+    return jsonify({
+        "phase": "Phase 3: Visualization Layer",
+        "timestamp": utc_now_iso(),
+        "metric_name": metric_name,
+        "history_hours": hours,
+        "history": history
+    })
+
+
+@app.route("/api/phase3/analytics-alerts")
+def analytics_alerts():
+    """Get analytics alerts and anomaly detections."""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+
+    ingest_phase3_data_from_feeds()
+    analytics_service.build_analytics_dashboard([
+        "control_loop_events_processed",
+        "control_loop_workflows_triggered",
+        "control_loop_duration_seconds",
+        "ai_gateway_active_models",
+        "ai_gateway_average_latency_ms",
+        "ai_gateway_success_rate"
+    ])
+
+    return jsonify({
+        "phase": "Phase 3: Visualization Layer",
+        "timestamp": utc_now_iso(),
+        "alerts": analytics_v1.get_active_alerts(limit=100),
+        "anomalies": analytics_v1.get_anomalies(limit=100),
+        "summary": analytics_service.get_summary()
     })
 
 
@@ -861,7 +1047,7 @@ def get_workflows():
         "phase": "Phase 2: Control Loop & Gateway",
         "workflow_count": len(workflows),
         "workflows": workflows,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": utc_now_iso()
     })
 
 
@@ -878,7 +1064,7 @@ def get_workflow(workflow_id):
     return jsonify({
         "phase": "Phase 2: Control Loop & Gateway",
         "workflow": workflow,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": utc_now_iso()
     })
 
 
@@ -898,7 +1084,7 @@ def execute_ai_inference():
             "phase": "Phase 2: Control Loop & Gateway",
             "status": "success",
             "inference_result": result,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now_iso()
         })
     except Exception as e:
         return jsonify({
@@ -906,6 +1092,35 @@ def execute_ai_inference():
             "status": "error",
             "error": str(e)
         }), 500
+
+
+# ============ Health & Observability ============
+
+@app.route("/health")
+def health():
+    """System health endpoint (no auth required)"""
+    health_data = metrics_collector.get_system_health()
+    latencies = metrics_collector.get_latency_percentiles()
+    return jsonify({
+        "system_health": health_data,
+        "latency_percentiles": latencies,
+        "database_connected": True if db else False,
+        "timestamp": utc_now_iso()
+    }), 200 if health_data["status"] == "healthy" else 503
+
+
+@app.route("/api/metrics")
+def get_metrics():
+    """Get operational metrics (admin only)"""
+    if g.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+    
+    return jsonify({
+        "system_health": metrics_collector.get_system_health(),
+        "latency_percentiles": metrics_collector.get_latency_percentiles(),
+        "database_stats": db.get_metrics_summary() if db else {},
+        "timestamp": utc_now_iso()
+    })
 
 
 if __name__ == "__main__":

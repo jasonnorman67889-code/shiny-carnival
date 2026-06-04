@@ -1,0 +1,3 @@
+email,name,token,pdf_filename,raw_date,raw_amount
+your_test_destination@gmail.com,TestUser,abc123get,receipt_101.pdf,2026-06-01 10:45:00,45.0
+another_customer@yahoo.com,Sam,xyz789reset,invoice_202.pdf,2026-05-28 14:15:00,120.50
