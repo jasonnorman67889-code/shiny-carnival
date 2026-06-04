@@ -62,6 +62,27 @@ A Flask-based Email Automation Dashboard with session-authenticated admin access
    - `FLASK_SECRET_KEY`
    - any file path or secrets the app requires
 
+### Docker Compose
+
+A sample `docker-compose.yml` is included for local container testing.
+
+```bash
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:8000` in your browser.
+
+### Makefile
+
+Use the included `Makefile` for common local commands:
+
+```bash
+make install
+make run
+make test
+make docker-up
+```
+
 ## GitHub
 
 Published at: https://github.com/jasonnorman67889-code/shiny-carnival
